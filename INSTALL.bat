@@ -97,9 +97,24 @@ if "%CHOICE%"=="1" (
 )
 
 if "%CHOICE%"=="2" (
+  REM The updater signing key lives one folder up, outside the git repo so it
+  REM can never be committed by accident. Without it the release build stops
+  REM with a signing error.
+  set "KEYFILE=%~dp0..\jws-forms-updater.key"
+  if exist "%~dp0..\jws-forms-updater.key" (
+    set "TAURI_SIGNING_PRIVATE_KEY=%~dp0..\jws-forms-updater.key"
+    set "TAURI_SIGNING_PRIVATE_KEY_PASSWORD="
+    echo   [ OK ]  Updater signing key found.
+  ) else (
+    echo   [ X ]  jws-forms-updater.key is missing from the JWS FORMS folder.
+    echo          The build will fail without it. Ask Claude for a new key.
+    echo.
+    pause
+    exit /b 1
+  )
   echo.
   echo   Building the installer. This compiles everything in release mode
-  echo   and takes 10-25 minutes the first time.
+  echo   and takes 20-40 minutes the first time.
   echo.
   call npm run release
   if errorlevel 1 (

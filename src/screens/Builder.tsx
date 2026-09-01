@@ -1,5 +1,4 @@
-import type { JSX } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -16,17 +15,21 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Icon } from "../components/Icons";
-import { Button, Menu, Spinner, useToast } from "../components/ui";
+import { Letterhead } from "../components/Logo";
+import { Button, Menu, Spinner, Toggle, useToast } from "../components/ui";
 import { QuestionCard } from "../builder/QuestionCard";
-import { TYPES, TYPE_GROUPS } from "../lib/questionTypes";
+import { TYPES, TYPE_GROUPS, isDisplay } from "../lib/questionTypes";
 import { allHeaders } from "../lib/answers";
+import { INSTITUTION_LIST } from "../lib/brand";
 import { useApp } from "../lib/store";
 import * as api from "../lib/api";
 import type { FormStyle, QuestionType, TunnelStatus } from "../types";
 
+type Tab = "questions" | "design" | "settings";
+
 export default function Builder({ id }: { id: string }) {
   const { form, openForm, patch, addQuestion, reorder, saving, dirty, go, selected } = useApp();
-  const toast = useToast();
+  const [tab, setTab] = useState<Tab>("questions");
 
   useEffect(() => {
     void openForm(id);
@@ -54,16 +57,18 @@ export default function Builder({ id }: { id: string }) {
     if (from >= 0 && to >= 0) reorder(from, to);
   }
 
-  const columns = allHeaders(form);
+  const askCount = form.questions.filter((q) => !isDisplay(q.type)).length;
 
   return (
     <>
       <div className="topbar">
         <Button icon="back" aria-label="Back to my forms" onClick={() => go({ name: "home" })} />
-        <h1 className="truncate" style={{ maxWidth: 380 }}>
+        <h1 className="truncate" style={{ maxWidth: 340 }}>
           {form.title || "Untitled form"}
         </h1>
-        <span style={{ fontSize: 12.5, color: "var(--ink-3)", display: "flex", gap: 6, alignItems: "center" }}>
+        <span
+          style={{ fontSize: 12.5, color: "var(--ink-3)", display: "flex", gap: 6, alignItems: "center" }}
+        >
           {saving ? (
             <>
               <Spinner /> Saving…
@@ -88,152 +93,189 @@ export default function Builder({ id }: { id: string }) {
         </Button>
       </div>
 
+      <nav className="tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={tab === "questions"}
+          className={`tab${tab === "questions" ? " on" : ""}`}
+          onClick={() => setTab("questions")}
+        >
+          <Icon name="list" />
+          Questions
+          <span className="badge">{askCount}</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === "design"}
+          className={`tab${tab === "design" ? " on" : ""}`}
+          onClick={() => setTab("design")}
+        >
+          <Icon name="palette" />
+          Design
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === "settings"}
+          className={`tab${tab === "settings" ? " on" : ""}`}
+          onClick={() => setTab("settings")}
+        >
+          <Icon name="settings" />
+          Settings
+        </button>
+      </nav>
+
       <div className="scroll">
         <div className="page narrow" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* ---- publish ---- */}
           <PublishPanel id={id} />
 
-          {/* ---- form header ---- */}
-          <div className="card" style={{ padding: "22px 24px" }}>
-            <input
-              className="bare h1"
-              value={form.title}
-              placeholder="Form title"
-              onChange={(e) => patch({ title: e.target.value })}
-            />
-            <textarea
-              className="bare muted"
-              value={form.description}
-              placeholder="Form description — shown to whoever fills it in"
-              onChange={(e) => patch({ description: e.target.value })}
-              rows={form.description.split("\n").length + 1}
-              style={{ marginTop: 8, resize: "none", overflow: "hidden" }}
-            />
-          </div>
-
-          {/* ---- questions ---- */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-            modifiers={[restrictToVerticalAxis]}
-          >
-            <SortableContext
-              items={form.questions.map((q) => q.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {form.questions.map((q, i) => (
-                  <QuestionCard key={q.id} q={q} index={i} />
-                ))}
+          {tab === "questions" && (
+            <>
+              <div className="card" style={{ padding: "22px 24px" }}>
+                <input
+                  className="bare h1"
+                  value={form.title}
+                  placeholder="Form title"
+                  onChange={(e) => patch({ title: e.target.value })}
+                />
+                <textarea
+                  className="bare muted"
+                  value={form.description}
+                  placeholder="Form description — shown to whoever fills it in"
+                  onChange={(e) => patch({ description: e.target.value })}
+                  rows={form.description.split("\n").length + 1}
+                  style={{ marginTop: 8, resize: "none", overflow: "hidden" }}
+                />
               </div>
-            </SortableContext>
-          </DndContext>
 
-          {/* ---- add ---- */}
-          <div className="row" style={{ justifyContent: "center", gap: 10, paddingTop: 4 }}>
-            <Button
-              variant="primary"
-              icon="plus"
-              onClick={() => addQuestion("short_text", selected ?? undefined)}
-            >
-              Add question
-            </Button>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={onDragEnd}
+                modifiers={[restrictToVerticalAxis]}
+              >
+                <SortableContext
+                  items={form.questions.map((q) => q.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {form.questions.map((q, i) => (
+                      <QuestionCard key={q.id} q={q} index={i} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
-            <Menu
-              align="left"
-              trigger={(open) => (
-                <Button variant="outline" icon="list" onClick={open}>
-                  Add a specific type
+              <div className="row" style={{ justifyContent: "center", gap: 10, paddingTop: 4 }}>
+                <Button
+                  variant="primary"
+                  icon="plus"
+                  onClick={() => addQuestion("short_text", selected ?? undefined)}
+                >
+                  Add question
                 </Button>
-              )}
-            >
-              {(close) => (
-                <div style={{ maxHeight: 400, overflowY: "auto", minWidth: 218 }}>
-                  {TYPE_GROUPS.map((g, gi) => (
-                    <div key={g}>
-                      {gi > 0 && <hr />}
-                      <div
-                        style={{
-                          fontSize: 11,
-                          letterSpacing: ".09em",
-                          textTransform: "uppercase",
-                          color: "var(--faint)",
-                          padding: "6px 10px 3px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {g}
-                      </div>
-                      {TYPES.filter((t) => t.group === g).map((t) => (
-                        <button
-                          key={t.type}
-                          onClick={() => {
-                            addQuestion(t.type as QuestionType, selected ?? undefined);
-                            close();
-                          }}
-                        >
-                          {t.icon}
-                          {t.label}
-                        </button>
+                <Menu
+                  align="left"
+                  trigger={(open) => (
+                    <Button variant="outline" icon="list" onClick={open}>
+                      Add a specific type
+                    </Button>
+                  )}
+                >
+                  {(close) => (
+                    <div style={{ maxHeight: 420, overflowY: "auto", minWidth: 224 }}>
+                      {TYPE_GROUPS.map((g, gi) => (
+                        <div key={g}>
+                          {gi > 0 && <hr />}
+                          <div className="grouphead">{g}</div>
+                          {TYPES.filter((t) => t.group === g).map((t) => (
+                            <button
+                              key={t.type}
+                              onClick={() => {
+                                addQuestion(t.type as QuestionType, selected ?? undefined);
+                                close();
+                              }}
+                            >
+                              {t.icon}
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
                       ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </Menu>
-          </div>
-
-          <hr className="divider" />
-
-          {/* ---- style + settings ---- */}
-          <StylePicker />
-          <FormSettingsPanel />
-
-          {/* ---- sheet preview ---- */}
-          <div className="card pad">
-            <div className="between" style={{ marginBottom: 10 }}>
-              <div>
-                <h3>Excel columns</h3>
-                <p className="hint" style={{ marginTop: 2 }}>
-                  This is the exact column layout responses are written into.
-                </p>
+                  )}
+                </Menu>
               </div>
-              <Button
-                size="sm"
-                icon="clipboard"
-                onClick={() => {
-                  void navigator.clipboard.writeText(columns.join("\t"));
-                  toast("Column headers copied");
-                }}
-              >
-                Copy headers
-              </Button>
-            </div>
-            <div className="tablewrap">
-              <table className="data">
-                <thead>
-                  <tr>
-                    {columns.map((h, i) => (
-                      <th key={i}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    {columns.map((_, i) => (
-                      <td key={i} style={{ color: "var(--faint)" }}>
-                        —
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+            </>
+          )}
+
+          {tab === "design" && (
+            <>
+              <InstitutionPanel />
+              <StylePicker />
+            </>
+          )}
+
+          {tab === "settings" && (
+            <>
+              <FormSettingsPanel />
+              <DataFolderPanel />
+              <ColumnsPanel columns={allHeaders(form)} />
+            </>
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+/* ==========================================================================
+   DESIGN TAB
+   ========================================================================== */
+
+function InstitutionPanel() {
+  const { form, patchSettings } = useApp();
+  if (!form) return null;
+  return (
+    <div className="card pad">
+      <h3>Whose letterhead?</h3>
+      <p className="hint" style={{ marginTop: 3 }}>
+        The mark, the name and the wording change. Address and phone numbers are the
+        same for all three.
+      </p>
+      <div className="instpick" style={{ marginTop: 16 }}>
+        {INSTITUTION_LIST.map((inst) => (
+          <button
+            key={inst.id}
+            className={`instopt${form.settings.institution === inst.id ? " on" : ""}`}
+            onClick={() => patchSettings({ institution: inst.id })}
+            aria-pressed={form.settings.institution === inst.id}
+          >
+            <img
+              src={inst.logo}
+              alt=""
+              style={{ height: 46, width: 46 * inst.aspect, objectFit: "contain" }}
+            />
+            <span>
+              <b>{inst.label}</b>
+              <s>{inst.name}</s>
+            </span>
+          </button>
+        ))}
+      </div>
+      <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--hair)" }}>
+        <label className="label">This is how it will head the form</label>
+        <div
+          style={{
+            border: "1px solid var(--hair)",
+            borderRadius: "var(--r)",
+            padding: "22px 24px",
+            background: "#fff",
+          }}
+        >
+          <Letterhead institution={form.settings.institution} height={54} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -281,6 +323,41 @@ const STYLES: { id: FormStyle; name: string; note: string; thumb: JSX.Element }[
       </div>
     ),
   },
+  {
+    id: "letterhead",
+    name: "Letterhead",
+    note: "Looks like official school stationery.",
+    thumb: (
+      <div className="th-let">
+        <div className="hd"><i /><em /></div>
+        <s /><s /><s style={{ width: "60%" }} />
+        <div className="ft" />
+      </div>
+    ),
+  },
+  {
+    id: "cards",
+    name: "Cards",
+    note: "Each question floats on its own card.",
+    thumb: (
+      <div className="th-crd">
+        <div className="c"><i /><s /></div>
+        <div className="c on"><i /><s /></div>
+        <div className="c"><i /></div>
+      </div>
+    ),
+  },
+  {
+    id: "cover",
+    name: "Cover",
+    note: "A full orange cover, then the questions.",
+    thumb: (
+      <div className="th-cov">
+        <div className="top"><i /><em /></div>
+        <div className="bot"><s /><s style={{ width: "70%" }} /></div>
+      </div>
+    ),
+  },
 ];
 
 function StylePicker() {
@@ -288,19 +365,19 @@ function StylePicker() {
   if (!form) return null;
   return (
     <div className="card pad">
-      <div className="between" style={{ marginBottom: 4, alignItems: "flex-start" }}>
+      <div className="between" style={{ alignItems: "flex-start" }}>
         <div>
           <h3>Form style</h3>
           <p className="hint" style={{ marginTop: 3 }}>
-            How this form looks to whoever fills it in. Changes apply everywhere —
-            on this PC, on the Wi-Fi link and on the public link.
+            How the form looks to whoever fills it in — on this PC, on the Wi-Fi link
+            and on the public link.
           </p>
         </div>
         <Button size="sm" icon="eye" onClick={() => go({ name: "preview", id: form.id })}>
           Preview
         </Button>
       </div>
-      <div className="stylepick" style={{ marginTop: 16 }}>
+      <div className="stylepick" style={{ marginTop: 18 }}>
         {STYLES.map((s) => (
           <button
             key={s.id}
@@ -320,6 +397,30 @@ function StylePicker() {
   );
 }
 
+/* ==========================================================================
+   SETTINGS TAB
+   ========================================================================== */
+
+function Row({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="between">
+      <div>
+        <div style={{ fontWeight: 550 }}>{title}</div>
+        <p className="hint" style={{ marginTop: 0 }}>{note}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function FormSettingsPanel() {
   const { form, patchSettings } = useApp();
   if (!form) return null;
@@ -327,48 +428,20 @@ function FormSettingsPanel() {
 
   return (
     <div className="card pad">
-      <h3 style={{ marginBottom: 14 }}>Form settings</h3>
+      <h3 style={{ marginBottom: 16 }}>Form settings</h3>
       <div className="stack">
-        <div className="between">
-          <div>
-            <div style={{ fontWeight: 550 }}>Accepting responses</div>
-            <p className="hint" style={{ marginTop: 0 }}>
-              Turn off to close the form without deleting anything.
-            </p>
-          </div>
-          <Toggle2 checked={s.acceptingResponses} onChange={(v) => patchSettings({ acceptingResponses: v })} />
-        </div>
-
-        <div className="between">
-          <div>
-            <div style={{ fontWeight: 550 }}>Record a timestamp</div>
-            <p className="hint" style={{ marginTop: 0 }}>
-              Adds a “Timestamp” column as the first column in the sheet.
-            </p>
-          </div>
-          <Toggle2 checked={s.collectTimestamp} onChange={(v) => patchSettings({ collectTimestamp: v })} />
-        </div>
-
-        <div className="between">
-          <div>
-            <div style={{ fontWeight: 550 }}>Show progress</div>
-            <p className="hint" style={{ marginTop: 0 }}>
-              The bar on the Panel wall and along the top of Focus.
-            </p>
-          </div>
-          <Toggle2 checked={s.showProgress} onChange={(v) => patchSettings({ showProgress: v })} />
-        </div>
-
-        <div className="between">
-          <div>
-            <div style={{ fontWeight: 550 }}>Allow another response</div>
-            <p className="hint" style={{ marginTop: 0 }}>
-              Shows a “Submit another response” link — ideal for a shared kiosk PC.
-            </p>
-          </div>
-          <Toggle2 checked={s.allowMultiple} onChange={(v) => patchSettings({ allowMultiple: v })} />
-        </div>
-
+        <Row title="Accepting responses" note="Turn off to close the form without deleting anything.">
+          <Toggle checked={s.acceptingResponses} onChange={(v) => patchSettings({ acceptingResponses: v })} />
+        </Row>
+        <Row title="Record a timestamp" note="Adds a “Timestamp” column as the first column in the sheet.">
+          <Toggle checked={s.collectTimestamp} onChange={(v) => patchSettings({ collectTimestamp: v })} />
+        </Row>
+        <Row title="Show progress" note="The bar on the Panel wall and along the top of Focus.">
+          <Toggle checked={s.showProgress} onChange={(v) => patchSettings({ showProgress: v })} />
+        </Row>
+        <Row title="Allow another response" note="Shows a “Submit another response” link — ideal for a shared kiosk PC.">
+          <Toggle checked={s.allowMultiple} onChange={(v) => patchSettings({ allowMultiple: v })} />
+        </Row>
         <div>
           <label className="label">Confirmation message</label>
           <textarea
@@ -383,22 +456,98 @@ function FormSettingsPanel() {
   );
 }
 
-/** Local alias so the settings rows read cleanly. */
-function Toggle2({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function DataFolderPanel() {
+  const { form, patchSettings } = useApp();
+  const toast = useToast();
+  const [appDefault, setAppDefault] = useState("");
+
+  useEffect(() => {
+    void api.dataDir().then(setAppDefault);
+  }, []);
+
+  if (!form) return null;
+  const custom = form.settings.dataFolder;
+
+  async function choose() {
+    const picked = await api.pickFolder(custom || appDefault);
+    if (!picked) return;
+    patchSettings({ dataFolder: picked });
+    toast("This form's responses will be saved there from now on");
+  }
+
   return (
-    <label className="toggle">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span className="track" />
-    </label>
+    <div className="card pad">
+      <h3>Where this form's answers are saved</h3>
+      <p className="hint" style={{ marginTop: 3 }}>
+        Each form writes one Excel workbook. Point this at a shared drive or OneDrive
+        folder and the office gets the responses without touching this PC.
+      </p>
+      <div className="urlbox" style={{ marginTop: 14, fontSize: 13.5 }}>
+        {custom || `${appDefault}\\responses`}
+        {!custom && <span style={{ color: "var(--ink-3)" }}> (app default)</span>}
+      </div>
+      <div className="wrap-row" style={{ marginTop: 12 }}>
+        <Button variant="outline" icon="folder" onClick={() => void choose()}>
+          Choose a folder
+        </Button>
+        <Button icon="folder" onClick={() => void api.openPath(custom || appDefault)}>
+          Open it
+        </Button>
+        {custom && (
+          <Button
+            variant="ghost"
+            icon="refresh"
+            onClick={() => {
+              patchSettings({ dataFolder: "" });
+              toast("Back to the app's default folder");
+            }}
+          >
+            Use the default
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
+function ColumnsPanel({ columns }: { columns: string[] }) {
+  const toast = useToast();
+  return (
+    <div className="card pad">
+      <div className="between" style={{ marginBottom: 12 }}>
+        <div>
+          <h3>Excel columns</h3>
+          <p className="hint" style={{ marginTop: 2 }}>
+            The exact column layout responses are written into.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          icon="clipboard"
+          onClick={() => {
+            void navigator.clipboard.writeText(columns.join("\t"));
+            toast("Column headers copied");
+          }}
+        >
+          Copy headers
+        </Button>
+      </div>
+      <div className="tablewrap">
+        <table className="data">
+          <thead>
+            <tr>{columns.map((h, i) => <th key={i}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            <tr>{columns.map((_, i) => <td key={i} style={{ color: "var(--faint)" }}>—</td>)}</tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 /* ==========================================================================
-   The publish panel.
-   It sits at the top of the editor because "how do I send this to people?" is
-   the question everyone has, and burying it behind a hover or a side screen is
-   how people fail to find it.
+   PUBLISH — the editor's call to action, above the tabs' content
    ========================================================================== */
 
 const PORT = 7788;
@@ -476,7 +625,7 @@ function PublishPanel({ id }: { id: string }) {
               </span>
             </div>
             <div className="linkrow" style={{ marginTop: 12 }}>
-                <code>{url}</code>
+              <code>{url}</code>
               <Button
                 variant="primary"
                 size="sm"
@@ -512,8 +661,8 @@ function PublishPanel({ id }: { id: string }) {
         <div className="grow">
           <h3>Ready to send this out?</h3>
           <p>
-            Publish it and you get a web link and a QR code anyone can open — parents
-            at home included. Answers land in your Excel file.
+            Publish it and you get a web link and a QR code anyone can open — parents at
+            home included. Answers land in your Excel file.
           </p>
         </div>
       </div>

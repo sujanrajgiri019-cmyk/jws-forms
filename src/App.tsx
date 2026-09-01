@@ -50,7 +50,7 @@ function Rail() {
   return (
     <nav className="rail" aria-label="Main">
       <span className="mark">
-        <Logo variant="shield" fluid />
+        <Logo institution="school" height={40} plate />
       </span>
 
       <RailBtn

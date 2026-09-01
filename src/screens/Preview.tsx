@@ -9,6 +9,9 @@ const STYLE_NAMES: Record<FormStyle, string> = {
   register: "Register",
   panel: "Panel",
   focus: "Focus",
+  letterhead: "Letterhead",
+  cards: "Cards",
+  cover: "Cover",
 };
 
 /**

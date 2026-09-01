@@ -105,9 +105,7 @@ export default function Settings() {
           </div>
 
           <div className="card pad row" style={{ gap: 16 }}>
-            <span style={{ color: "var(--o-500)", lineHeight: 0 }}>
-              <Logo variant="full" size={54} />
-            </span>
+            <Logo institution="school" height={54} />
             <div className="grow">
               <h3>JWS Forms</h3>
               <p className="hint" style={{ marginTop: 2 }}>

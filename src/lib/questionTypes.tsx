@@ -35,8 +35,15 @@ export const TYPES: TypeMeta[] = [
   { type: "date", label: "Date", group: "Date & time", icon: <Icon name="calendar" /> },
   { type: "time", label: "Time", group: "Date & time", icon: <Icon name="clock" /> },
 
+  { type: "photo", label: "Photo upload", group: "Files", icon: <Icon name="camera" /> },
+
   { type: "section", label: "Section heading", group: "Layout", icon: <Icon name="section" /> },
+  { type: "image", label: "Picture", group: "Layout", icon: <Icon name="image" /> },
 ];
+
+/** Blocks that show something rather than ask something. */
+export const DISPLAY_TYPES: QuestionType[] = ["section", "image"];
+export const isDisplay = (t: QuestionType) => DISPLAY_TYPES.includes(t);
 
 export const TYPE_MAP: Record<QuestionType, TypeMeta> = Object.fromEntries(
   TYPES.map((t) => [t.type, t])
@@ -62,6 +69,9 @@ export function newQuestion(type: QuestionType = "short_text"): Question {
     shuffle: false,
     scale: { min: 1, max: 5, minLabel: "", maxLabel: "" },
     ratingMax: 5,
+    image: "",
+    imageCaption: "",
+    imageWidth: "medium",
   };
 }
 
@@ -77,11 +87,13 @@ export function morphQuestion(q: Question, type: QuestionType): Question {
     columns: meta.hasGrid ? (q.columns.length ? q.columns : fresh.columns) : [],
     hasOther: meta.hasOptions ? q.hasOther : false,
     placeholder: meta.hasPlaceholder ? q.placeholder : "",
-    required: type === "section" ? false : q.required,
+    required: isDisplay(type) ? false : q.required,
   };
 }
 
-export function newForm(): import("../types").FormDef {
+export function newForm(
+  institution: import("./brand").Institution = "school"
+): import("../types").FormDef {
   const now = new Date().toISOString();
   return {
     id: uid() + uid(),
@@ -90,6 +102,8 @@ export function newForm(): import("../types").FormDef {
     questions: [newQuestion("short_text")],
     settings: {
       style: "panel",
+      institution,
+      dataFolder: "",
       confirmationMessage: "Your response has been recorded. Thank you!",
       allowMultiple: true,
       showProgress: true,

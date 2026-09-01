@@ -35,6 +35,7 @@ export async function listForms(): Promise<FormSummary[]> {
         title: f.title || "Untitled form",
         description: f.description,
         style: f.settings.style,
+        institution: f.settings.institution,
         questionCount: f.questions.filter((q) => q.type !== "section").length,
         responseCount: (db.responses[f.id] || []).length,
         updatedAt: f.updatedAt,

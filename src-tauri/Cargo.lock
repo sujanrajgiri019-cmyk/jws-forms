@@ -2235,10 +2235,11 @@ dependencies = [
 
 [[package]]
 name = "jws-forms"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "calamine",
  "chrono",
  "dirs 5.0.1",

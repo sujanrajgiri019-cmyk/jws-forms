@@ -13,10 +13,20 @@ export type QuestionType =
   | "grid_checkbox"
   | "date"
   | "time"
-  | "section";
+  | "section"
+  | "image"
+  | "photo";
 
-/** Which of the three looks a form wears. Set per form. */
-export type FormStyle = "register" | "panel" | "focus";
+export type { Institution } from "./lib/brand";
+
+/** Which look a form wears. Set per form. */
+export type FormStyle =
+  | "register"
+  | "panel"
+  | "focus"
+  | "letterhead"
+  | "cards"
+  | "cover";
 
 export interface Choice {
   id: string;
@@ -44,10 +54,20 @@ export interface Question {
   shuffle: boolean;
   scale: Scale;
   ratingMax: number;
+  /** For an "image" block: the picture itself, stored as a data URL. */
+  image: string;
+  /** Caption under an image block. */
+  imageCaption: string;
+  /** How wide an image block is drawn. */
+  imageWidth: "small" | "medium" | "full";
 }
 
 export interface FormSettings {
   style: FormStyle;
+  /** Which institution's letterhead this form carries. */
+  institution: import("./lib/brand").Institution;
+  /** Where this form's Excel workbook is written. Empty = the app default. */
+  dataFolder: string;
   confirmationMessage: string;
   allowMultiple: boolean;
   showProgress: boolean;
@@ -70,6 +90,7 @@ export interface FormSummary {
   id: string;
   title: string;
   style: FormStyle;
+  institution: string;
   description: string;
   questionCount: number;
   responseCount: number;

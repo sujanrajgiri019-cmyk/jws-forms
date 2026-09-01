@@ -1,15 +1,19 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../components/Icons";
-import { Button, ConfirmModal, Empty, Menu, relativeTime, useToast } from "../components/ui";
+import { Button, ConfirmModal, Empty, Menu, Modal, relativeTime, useToast } from "../components/ui";
 import { useApp } from "../lib/store";
 import * as api from "../lib/api";
 import { newForm } from "../lib/questionTypes";
-import type { FormStyle, FormSummary } from "../types";
+import { INSTITUTION_LIST } from "../lib/brand";
+import type { FormStyle, FormSummary, Institution } from "../types";
 
 const STYLE_LABEL: Record<FormStyle, string> = {
   register: "Register",
   panel: "Panel",
   focus: "Focus",
+  letterhead: "Letterhead",
+  cards: "Cards",
+  cover: "Cover",
 };
 
 export default function Home() {
@@ -17,6 +21,7 @@ export default function Home() {
   const toast = useToast();
   const [q, setQ] = useState("");
   const [confirm, setConfirm] = useState<FormSummary | null>(null);
+  const [picking, setPicking] = useState(false);
 
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -30,8 +35,9 @@ export default function Home() {
 
   const totalResponses = forms.reduce((n, f) => n + f.responseCount, 0);
 
-  async function create() {
-    const f = newForm();
+  async function create(institution: Institution) {
+    setPicking(false);
+    const f = newForm(institution);
     await api.saveForm(f);
     await refreshForms();
     await useApp.getState().openForm(f.id);
@@ -73,7 +79,7 @@ export default function Home() {
             onChange={(e) => setQ(e.target.value)}
           />
         )}
-        <Button variant="primary" icon="plus" onClick={create}>
+        <Button variant="primary" icon="plus" onClick={() => setPicking(true)}>
           New form
         </Button>
       </div>
@@ -93,7 +99,7 @@ export default function Home() {
               }
               action={
                 q ? undefined : (
-                  <Button variant="primary" size="lg" icon="plus" onClick={create}>
+                  <Button variant="primary" size="lg" icon="plus" onClick={() => setPicking(true)}>
                     Create your first form
                   </Button>
                 )
@@ -192,6 +198,31 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {picking && (
+        <Modal title="Which one is this form for?" onClose={() => setPicking(false)}>
+          <p style={{ marginBottom: 18 }}>
+            This decides the logo and the name printed at the top of the form. The
+            address and phone numbers are the same either way, and you can change this
+            later under Design.
+          </p>
+          <div className="instpick">
+            {INSTITUTION_LIST.map((inst) => (
+              <button key={inst.id} className="instopt" onClick={() => void create(inst.id)}>
+                <img
+                  src={inst.logo}
+                  alt=""
+                  style={{ height: 52, width: 52 * inst.aspect, objectFit: "contain" }}
+                />
+                <span>
+                  <b>{inst.label}</b>
+                  <s>{inst.name}</s>
+                </span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
 
       {confirm && (
         <DeleteModal
