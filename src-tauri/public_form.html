@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light" />
+<meta name="theme-color" content="#F06522" />
+<title>__TITLE__</title>
+<style>
+/* The typefaces and the form stylesheet are the app's own, served from this
+   PC — the shared page and the desktop app cannot drift apart, and a phone
+   needs no internet connection beyond reaching this address. */
+@font-face {
+  font-family: "Archivo";
+  src: url("/f/archivo.woff2") format("woff2-variations");
+  font-weight: 100 900; font-stretch: 62% 125%; font-display: swap;
+}
+@font-face {
+  font-family: "Public Sans";
+  src: url("/f/body.woff2") format("woff2-variations");
+  font-weight: 100 900; font-display: swap;
+}
+:root {
+  --display: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --body: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --ease: cubic-bezier(.22, .68, .35, 1);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; min-height: 100%; background: #fff; }
+body { font-family: var(--body); -webkit-font-smoothing: antialiased; }
+#app { min-height: 100vh; display: flex; flex-direction: column; }
+#app > .fs { flex: 1; }
+.spin {
+  width: 17px; height: 17px; border-radius: 99px; display: inline-block;
+  border: 2px solid currentColor; border-top-color: transparent;
+  animation: rot .7s linear infinite; vertical-align: -3px;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+.fatal { max-width: 34rem; margin: 18vh auto; padding: 0 24px; font-family: var(--body); color: #4E3D2F; }
+.fatal h1 { font-family: var(--display); font-stretch: 116%; }
+@media (prefers-reduced-motion: reduce) { * { animation-duration: .001ms !important; transition-duration: .001ms !important; } }
+
+__FORM_CSS__
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+"use strict";
+var FORM = "__FORM_JSON__";
+var STYLE = "__STYLE__";
+var LOGO = '__LOGO_SVG__';
+
+var LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+var ICON = {
+  star: '<svg viewBox="0 0 24 24" fill="currentColor" width="30" height="30"><path d="M12 3.2l2.7 5.5 6 .9-4.35 4.24L17.4 20 12 17.15 6.6 20l1.05-6.16L3.3 9.6l6-.9z"/></svg>',
+  tick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="60" height="60"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM8.2 12.3l2.6 2.6 5-5.4"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M12 8.5v5M12 16.6h.01M10.3 4.2 2.7 17.4A1.7 1.7 0 0 0 4.2 20h15.6a1.7 1.7 0 0 0 1.5-2.6L13.7 4.2a1.7 1.7 0 0 0-3 0Z"/></svg>'
+};
+
+var answers = {};
+var errors = {};
+var step = 0;
+var sending = false;
+var app = document.getElementById("app");
+
+/* ------------------------------------------------------------- utilities */
+
+function el(tag, attrs, children) {
+  var n = document.createElement(tag);
+  attrs = attrs || {};
+  for (var k in attrs) {
+    var v = attrs[k];
+    if (v === null || v === false || v === undefined) continue;
+    if (k === "class") n.className = v;
+    else if (k === "html") n.innerHTML = v;
+    else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  (children || []).forEach(function (c) {
+    if (c === null || c === undefined || c === false) return;
+    n.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
+  });
+  return n;
+}
+function logo(cls) { return el("span", { class: cls || "fs-logo", html: LOGO }); }
+function questions() { return FORM.questions || []; }
+function answerable() { return questions().filter(function (q) { return q.type !== "section"; }); }
+function settings() { return FORM.settings || {}; }
+
+/* ---------------------------------------------------------- answers model
+   These four functions mirror src/lib/answers.ts exactly. Change one, change
+   the other, or the two routes will write different columns. */
+
+function headersFor(q) {
+  var t = (q.title || "Untitled question").trim();
+  if (q.type === "grid_choice" || q.type === "grid_checkbox")
+    return (q.rows || []).map(function (r) { return t + " [" + r.label + "]"; });
+  return [t];
+}
+function valuesFor(q) {
+  var v = answers[q.id];
+  if (q.type === "grid_choice")
+    return (q.rows || []).map(function (r) { return (v && v[r.id]) || ""; });
+  if (q.type === "grid_checkbox")
+    return (q.rows || []).map(function (r) { return ((v && v[r.id]) || []).join(", "); });
+  if (q.type === "checkboxes") return [((v || []).join(", "))];
+  return [v === undefined || v === null ? "" : String(v)];
+}
+function isAnswered(q) {
+  var v = answers[q.id];
+  if (q.type === "checkboxes") return (v || []).length > 0;
+  if (q.type === "grid_choice")
+    return (q.rows || []).length > 0 && q.rows.every(function (r) { return v && v[r.id]; });
+  if (q.type === "grid_checkbox")
+    return (q.rows || []).length > 0 && q.rows.every(function (r) { return v && (v[r.id] || []).length; });
+  return v !== undefined && v !== null && String(v).trim() !== "";
+}
+function validate(q) {
+  if (q.type === "section") return "";
+  if (q.required && !isAnswered(q)) {
+    return (q.type === "grid_choice" || q.type === "grid_checkbox")
+      ? "Please answer every row." : "This question is required.";
+  }
+  if (!isAnswered(q)) return "";
+  var s = String(answers[q.id]);
+  if (q.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "Enter a valid email address.";
+  if (q.type === "phone" && !/^[0-9+\-\s()]{6,}$/.test(s)) return "Enter a valid phone number.";
+  if (q.type === "number" && isNaN(Number(s))) return "Enter a number.";
+  return "";
+}
+function completion() {
+  var qs = answerable();
+  if (!qs.length) return 0;
+  return qs.filter(isAnswered).length / qs.length;
+}
+function shuffled(arr, on, seed) {
+  if (!on) return arr;
+  var out = arr.slice(), h = 0, i, j, t;
+  for (i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  for (i = out.length - 1; i > 0; i--) {
+    h = (h * 1103515245 + 12345) >>> 0;
+    j = h % (i + 1);
+    t = out[i]; out[i] = out[j]; out[j] = t;
+  }
+  return out;
+}
+function setAnswer(id, v) {
+  answers[id] = v;
+  if (errors[id]) delete errors[id];
+  render();
+}
+
+/* ------------------------------------------------------------------ field */
+
+function field(q) {
+  var v = answers[q.id];
+  var str = typeof v === "string" ? v : "";
+
+  function textish(type, cls) {
+    return el("input", {
+      class: "fs-input" + (cls || ""), type: type, value: str,
+      placeholder: q.placeholder || "",
+      oninput: function (e) { answers[q.id] = e.target.value; if (errors[q.id]) { delete errors[q.id]; paintErrors(); } }
+    });
+  }
+
+  switch (q.type) {
+    case "paragraph":
+      return el("textarea", {
+        class: "fs-textarea", placeholder: q.placeholder || "",
+        oninput: function (e) { answers[q.id] = e.target.value; if (errors[q.id]) { delete errors[q.id]; paintErrors(); } }
+      }, [str]);
+    case "number": return textish("number");
+    case "email": return textish("email");
+    case "phone": return textish("tel");
+    case "date": return textish("date", " fs-narrow");
+    case "time": return textish("time", " fs-narrow");
+    case "short_text": return textish("text");
+
+    case "dropdown": {
+      var opts = [el("option", { value: "" }, ["Choose…"])];
+      shuffled(q.options || [], q.shuffle, q.id).forEach(function (o) {
+        opts.push(el("option", { value: o.label, selected: str === o.label }, [o.label]));
+      });
+      return el("select", {
+        class: "fs-select",
+        onchange: function (e) { setAnswer(q.id, e.target.value); }
+      }, opts);
+    }
+
+    case "multiple_choice":
+    case "checkboxes": return choices(q);
+
+    case "linear_scale": {
+      var wrap = el("div", {}, []);
+      var row = el("div", { class: "fs-scale" }, []);
+      var min = (q.scale && q.scale.min) || 0, max = (q.scale && q.scale.max) || 5;
+      if (q.scale && q.scale.min === undefined) min = 1;
+      for (var i = min; i <= max; i++) {
+        (function (n) {
+          row.appendChild(el("label", { class: str === String(n) ? "on" : null }, [
+            String(n),
+            el("input", {
+              type: "radio", name: q.id, checked: str === String(n),
+              onchange: function () { setAnswer(q.id, String(n)); }
+            })
+          ]));
+        })(i);
+      }
+      wrap.appendChild(row);
+      if (q.scale && (q.scale.minLabel || q.scale.maxLabel)) {
+        wrap.appendChild(el("div", { class: "fs-ends" }, [
+          el("span", {}, [q.scale.minLabel || ""]),
+          el("span", {}, [q.scale.maxLabel || ""])
+        ]));
+      }
+      return wrap;
+    }
+
+    case "rating": {
+      var n = Number(str) || 0, stars = el("div", { class: "fs-stars" }, []);
+      for (var s = 1; s <= (q.ratingMax || 5); s++) {
+        (function (k) {
+          stars.appendChild(el("button", {
+            type: "button", class: "fs-star" + (k <= n ? " on" : ""),
+            "aria-label": k + " of " + (q.ratingMax || 5), html: ICON.star,
+            onclick: function () { setAnswer(q.id, k === n ? "" : String(k)); }
+          }));
+        })(s);
+      }
+      return stars;
+    }
+
+    case "grid_choice":
+    case "grid_checkbox": return grid(q);
+  }
+  return el("div", {});
+}
+
+function choices(q) {
+  var multi = q.type === "checkboxes";
+  var v = answers[q.id];
+  var chosen = multi ? (v || []) : (typeof v === "string" && v ? [v] : []);
+  var known = {};
+  (q.options || []).forEach(function (o) { known[o.label] = 1; });
+  var otherText = "";
+  chosen.forEach(function (c) { if (!known[c]) otherText = c; });
+
+  function pick(label, on) {
+    if (!multi) { setAnswer(q.id, on ? label : ""); return; }
+    var set = chosen.filter(function (c) { return c !== label; });
+    if (on) set.push(label);
+    setAnswer(q.id, set);
+  }
+  function setOther(text) {
+    var rest = chosen.filter(function (c) { return known[c]; });
+    if (!multi) { answers[q.id] = text; paintErrors(); return; }
+    answers[q.id] = text ? rest.concat([text]) : rest;
+    paintErrors();
+  }
+
+  var box = el("div", { class: "fs-choices", role: multi ? "group" : "radiogroup" }, []);
+
+  shuffled(q.options || [], q.shuffle, q.id).forEach(function (o, i) {
+    var on = chosen.indexOf(o.label) >= 0;
+    var kids = [];
+    if (STYLE === "focus") kids.push(el("span", { class: "fs-mark" }, [LETTERS[i] || "•"]));
+    else if (STYLE !== "panel") kids.push(el("span", { class: "fs-mark", "aria-hidden": "true" }));
+    kids.push(el("span", { class: "fs-choice-txt" }, [o.label]));
+    box.appendChild(el("button", {
+      type: "button", role: multi ? "checkbox" : "radio", "aria-checked": on ? "true" : "false",
+      class: "fs-choice" + (on ? " on" : ""),
+      onclick: function () { pick(o.label, !on); }
+    }, kids));
+  });
+
+  if (q.hasOther) {
+    var input = el("input", {
+      type: "text", value: otherText, placeholder: "Your answer", "aria-label": "Other answer",
+      oninput: function (e) { setOther(e.target.value); }
+    });
+    var kids2 = [];
+    if (STYLE === "focus") kids2.push(el("span", { class: "fs-mark" }, [LETTERS[(q.options || []).length] || "•"]));
+    else if (STYLE !== "panel") kids2.push(el("span", { class: "fs-mark", "aria-hidden": "true" }));
+    kids2.push(el("span", { class: "fs-other" }, ["Other:", input]));
+    box.appendChild(el("div", {
+      class: "fs-choice other-chip" + (otherText ? " on" : ""),
+      onclick: function (e) { if (e.target.tagName !== "INPUT" && !otherText) setOther("Other"); }
+    }, kids2));
+  }
+  return box;
+}
+
+function grid(q) {
+  var multi = q.type === "grid_checkbox";
+  var m = answers[q.id] || {};
+  var head = [el("th", {})];
+  (q.columns || []).forEach(function (c) { head.push(el("th", {}, [c.label])); });
+
+  var body = [];
+  (q.rows || []).forEach(function (r) {
+    var cells = [el("td", {}, [r.label])];
+    (q.columns || []).forEach(function (c) {
+      var on = multi ? ((m[r.id] || []).indexOf(c.label) >= 0) : m[r.id] === c.label;
+      cells.push(el("td", {}, [el("input", {
+        type: multi ? "checkbox" : "radio",
+        name: q.id + "-" + r.id,
+        checked: on,
+        "aria-label": r.label + " — " + c.label,
+        onchange: function (e) {
+          var next = {};
+          for (var k in m) next[k] = m[k];
+          if (multi) {
+            var set = (next[r.id] || []).filter(function (x) { return x !== c.label; });
+            if (e.target.checked) set.push(c.label);
+            next[r.id] = set;
+          } else next[r.id] = c.label;
+          setAnswer(q.id, next);
+        }
+      })]));
+    });
+    body.push(el("tr", {}, cells));
+  });
+
+  return el("div", { class: "fs-gridwrap" }, [
+    el("table", { class: "fs-grid" }, [
+      el("thead", {}, [el("tr", {}, head)]),
+      el("tbody", {}, body)
+    ])
+  ]);
+}
+
+/* ------------------------------------------------------------ question block */
+
+function questionBlock(q, index) {
+  var kids = [
+    el("h3", { class: "fs-qtitle" }, [
+      q.title || "Untitled question",
+      q.required ? el("span", { class: "fs-req" }, ["*"]) : null
+    ]),
+    q.description ? el("p", { class: "fs-help" }, [q.description]) : null,
+    el("div", { class: "fs-field" }, [field(q)]),
+    errors[q.id]
+      ? el("p", { class: "fs-err" }, [el("span", { html: ICON.alert }), errors[q.id]])
+      : null
+  ];
+  return el("section", {
+    class: "fs-q" + (errors[q.id] ? " invalid" : ""), "data-q": q.id
+  }, [
+    el("div", { class: "fs-n" }, [
+      STYLE === "focus"
+        ? "Question " + index + " of " + answerable().length
+        : (index < 10 ? "0" + index : String(index))
+    ]),
+    el("div", { class: "fs-qbody" }, kids)
+  ]);
+}
+
+function sectionBlock(q) {
+  return el("section", { class: "fs-section" }, [
+    el("h2", { class: "dsp" }, [q.title || "Section"]),
+    q.description ? el("p", { class: "fs-help" }, [q.description]) : null
+  ]);
+}
+
+/* ------------------------------------------------------------- panel wall */
+
+function panelSide() {
+  var groups = [], cur = { title: "Questions", qs: [] };
+  questions().forEach(function (q) {
+    if (q.type === "section") {
+      if (cur.qs.length) groups.push(cur);
+      cur = { title: q.title || "Section", qs: [] };
+    } else cur.qs.push(q);
+  });
+  if (cur.qs.length) groups.push(cur);
+
+  function answeredIn(qs) {
+    return qs.filter(function (q) {
+      var save = answers[q.id];
+      return save !== undefined && (Array.isArray(save) ? save.length : String(save || "").trim() !== "" || typeof save === "object");
+    }).length;
+  }
+
+  var firstUnfinished = -1;
+  groups.forEach(function (g, i) {
+    if (firstUnfinished < 0 && answeredIn(g.qs) < g.qs.length) firstUnfinished = i;
+  });
+
+  var kids = [
+    logo(),
+    el("h1", { class: "dsp" }, [FORM.title || "Untitled form"]),
+    FORM.description ? el("p", { class: "fs-desc" }, [FORM.description]) : null
+  ];
+
+  if (groups.length > 1) {
+    var steps = el("div", { class: "fs-steps" }, []);
+    groups.forEach(function (g, i) {
+      var a = answeredIn(g.qs);
+      var state = a === g.qs.length ? "done" : (i === firstUnfinished ? "now" : "pending");
+      steps.appendChild(el("div", { class: "fs-step " + state }, [
+        el("span", { class: "fs-stepdot" }),
+        el("span", {}, [
+          el("b", {}, [g.title]),
+          el("s", {}, [state === "done" ? "Complete" : a + " of " + g.qs.length + " answered"])
+        ])
+      ]));
+    });
+    kids.push(steps);
+  }
+
+  var pct = Math.round(completion() * 100);
+  kids.push(el("div", { class: "fs-prog" }, [
+    el("span", { class: "lbl" }, ["Progress · " + pct + "%"]),
+    el("div", { class: "fs-track" }, [el("i", { style: "width:" + pct + "%" })])
+  ]));
+
+  return el("aside", { class: "fs-side" }, kids);
+}
+
+/* ----------------------------------------------------------------- submit */
+
+function submitAll() {
+  errors = {};
+  questions().forEach(function (q) {
+    var m = validate(q);
+    if (m) errors[q.id] = m;
+  });
+  if (Object.keys(errors).length) {
+    render();
+    var first = questions().filter(function (q) { return errors[q.id]; })[0];
+    var node = first && document.querySelector('[data-q="' + first.id + '"]');
+    if (node) node.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  send();
+}
+
+function send() {
+  var headers = [], values = [];
+  if (settings().collectTimestamp !== false) {
+    headers.push("Timestamp");
+    values.push(new Date().toLocaleString());
+  }
+  answerable().forEach(function (q) {
+    headersFor(q).forEach(function (h) { headers.push(h); });
+    valuesFor(q).forEach(function (v) { values.push(v); });
+  });
+
+  sending = true;
+  render();
+  fetch("/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ headers: headers, values: values })
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      sending = false;
+      if (!d.ok) throw new Error(d.error || "The school computer could not save this response.");
+      renderDone();
+    })
+    .catch(function (e) {
+      sending = false;
+      render();
+      alert("Could not send your answers.\n\n" + e.message +
+        "\n\nYour answers are still on this page — try Submit again in a moment.");
+    });
+}
+
+function advance() {
+  var qs = questions(), q = qs[step];
+  if (q && q.type !== "section") {
+    var m = validate(q);
+    if (m) { errors = {}; errors[q.id] = m; render(); return; }
+  }
+  if (step < qs.length - 1) { step++; errors = {}; render(); }
+  else submitAll();
+}
+
+/* Repaint only the error lines, so typing does not rebuild the whole page
+   (which would steal focus from the box you are typing in). */
+function paintErrors() {
+  if (STYLE === "panel") {
+    var side = document.querySelector(".fs-side");
+    if (side) side.replaceWith(panelSide());
+  }
+}
+
+/* ----------------------------------------------------------------- render */
+
+function render() {
+  var closed = settings().acceptingResponses === false;
+  app.innerHTML = "";
+
+  if (STYLE === "focus") { renderFocus(closed); return; }
+
+  var root = el("div", { class: "fs fs-" + STYLE }, []);
+  if (STYLE === "panel") root.appendChild(panelSide());
+
+  var main = el("div", { class: "fs-main" }, []);
+
+  if (STYLE === "register") {
+    main.appendChild(el("header", { class: "fs-head" }, [
+      el("div", { class: "fs-brand" }, [logo(), el("span", {}, ["JWS"])]),
+      el("h1", { class: "dsp" }, [FORM.title || "Untitled form"]),
+      FORM.description ? el("p", { class: "fs-desc" }, [FORM.description]) : null,
+      answerable().some(function (q) { return q.required; })
+        ? el("p", { class: "fs-headnote" }, [el("span", { class: "fs-req" }, ["*"]), " Required"])
+        : null
+    ]));
+  }
+
+  if (closed) {
+    main.appendChild(el("div", { style: STYLE === "register" ? "padding:24px 60px 0" : "padding-bottom:8px" }, [
+      el("div", { class: "fs-closed" }, [
+        el("span", { html: ICON.alert }),
+        el("span", {}, ["This form is closed and is not accepting responses at the moment."])
+      ])
+    ]));
+  }
+
+  var flow = el("div", { class: "fs-flow" }, []);
+  var n = 0;
+  questions().forEach(function (q) {
+    if (q.type === "section") { flow.appendChild(sectionBlock(q)); return; }
+    n++;
+    flow.appendChild(questionBlock(q, n));
+  });
+  main.appendChild(flow);
+
+  main.appendChild(el("footer", { class: "fs-foot" }, [
+    el("button", {
+      class: "fs-submit", type: "button", disabled: sending || closed,
+      onclick: submitAll
+    }, [sending ? el("span", { class: "spin" }) : null, sending ? " Sending…" : "Submit"])
+  ]));
+
+  root.appendChild(main);
+  app.appendChild(root);
+}
+
+function renderFocus(closed) {
+  var qs = questions(), q = qs[step];
+  if (!q) return;
+  var pct = Math.round(completion() * 100);
+  var last = step === qs.length - 1;
+
+  var index = 0;
+  for (var i = 0; i <= step; i++) if (qs[i].type !== "section") index++;
+
+  var stage = q.type === "section" ? sectionBlock(q) : questionBlock(q, index);
+
+  app.appendChild(el("div", { class: "fs fs-focus" }, [
+    el("div", { class: "fs-watermark", html: LOGO }),
+    el("div", { class: "fs-topbar" }, [el("i", { style: "width:" + Math.max(pct, 4) + "%" })]),
+    el("div", { class: "fs-crumb" }, [
+      el("span", { class: "l" }, [logo(), el("b", {}, ["JWS"])]),
+      el("span", { class: "lbl" }, [FORM.title || "Untitled form"])
+    ]),
+    el("div", { class: "fs-main" }, [
+      closed ? el("div", { style: "padding:24px 28px 0;max-width:620px;margin:0 auto;width:100%" }, [
+        el("div", { class: "fs-closed" }, [
+          el("span", { html: ICON.alert }),
+          el("span", {}, ["This form is closed and is not accepting responses at the moment."])
+        ])
+      ]) : null,
+      el("div", { class: "fs-flow" }, [stage])
+    ]),
+    el("div", { class: "fs-nav" }, [
+      el("div", { class: "inner" }, [
+        el("button", {
+          class: "fs-back", type: "button", disabled: step === 0,
+          onclick: function () { if (step > 0) { step--; errors = {}; render(); } }
+        }, ["← Back"]),
+        el("button", {
+          class: last ? "fs-submit" : "fs-next", type: "button",
+          disabled: sending || (last && closed), onclick: advance
+        }, [sending ? "Sending…" : (last ? "Submit" : "Next")]),
+        el("span", { class: "fs-kbd" }, ["or press ", el("kbd", {}, ["Enter"])])
+      ])
+    ])
+  ]));
+
+  var auto = app.querySelector(".fs-input, .fs-textarea");
+  if (auto && (q.type === "short_text" || q.type === "paragraph" || q.type === "email" ||
+               q.type === "number" || q.type === "phone")) {
+    auto.focus();
+    try { auto.setSelectionRange(auto.value.length, auto.value.length); } catch (e) {}
+  }
+}
+
+function renderDone() {
+  app.innerHTML = "";
+  var body = el("div", { class: "fs-done" }, [
+    el("span", { class: "tick", html: ICON.tick }),
+    el("h2", { class: "dsp" }, ["Response recorded"]),
+    el("p", {}, [settings().confirmationMessage || "Thank you!"]),
+    settings().allowMultiple !== false
+      ? el("button", {
+          class: "fs-submit", type: "button", style: "margin-top:14px",
+          onclick: function () { answers = {}; errors = {}; step = 0; render(); window.scrollTo({ top: 0 }); }
+        }, ["Submit another response"])
+      : null
+  ]);
+  var root = el("div", { class: "fs fs-" + STYLE }, []);
+  if (STYLE === "panel") root.appendChild(panelSide());
+  root.appendChild(el("div", { class: "fs-main" }, [body]));
+  app.appendChild(root);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/* -------------------------------------------------------------- keyboard */
+
+document.addEventListener("keydown", function (e) {
+  if (STYLE !== "focus" || sending) return;
+  var t = e.target, typing = t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT");
+  if (e.key === "Enter" && !(typing && t.tagName === "TEXTAREA")) { e.preventDefault(); advance(); return; }
+  if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+
+  var q = questions()[step];
+  if (!q || (q.type !== "multiple_choice" && q.type !== "checkboxes")) return;
+  var i = "abcdefghijklmnopqrstuvwxyz".indexOf(e.key.toLowerCase());
+  var opt = (q.options || [])[i];
+  if (!opt) return;
+  e.preventDefault();
+  if (q.type === "checkboxes") {
+    var cur = answers[q.id] || [];
+    var next = cur.filter(function (c) { return c !== opt.label; });
+    if (next.length === cur.length) next.push(opt.label);
+    setAnswer(q.id, next);
+  } else setAnswer(q.id, opt.label);
+});
+
+/* ------------------------------------------------------------------ start */
+
+if (!FORM || !FORM.questions) {
+  app.innerHTML = '<div class="fatal"><h1>This form is not available</h1>' +
+    '<p>The school computer sharing it may have stopped. Ask whoever sent you the link for a new one.</p></div>';
+} else {
+  render();
+}
+</script>
+</body>
+</html>

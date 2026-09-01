@@ -1,0 +1,472 @@
+/* ============================================================================
+   JWS FORMS — THE THREE FORM STYLES
+
+   One DOM, three looks. Every form renders the same structure:
+
+     .fs.fs-<style>
+       .fs-side       (Panel only — the orange wall)
+       .fs-main
+         .fs-head     logo, title, description
+         .fs-flow
+           .fs-q      .fs-n + .fs-qbody (title, help, field, error)
+         .fs-foot     submit
+
+   Deliberate decision: a form is ALWAYS light — white ground, orange mark —
+   in both app themes. It is the school's public face, seen by parents on
+   their own phones, and it should look identical everywhere. Only the app
+   around it follows the viewer's theme.
+   ========================================================================= */
+
+.fs {
+  --o: #F06522;
+  --o-d: #D14E10;
+  --o-dd: #A83C0A;
+  --o-l: #FFF6F1;
+  --o-ll: #FFE7D9;
+  --k: #201D1B;
+  --k2: #56514E;
+  --k3: #8A8380;
+  --k4: #B7AFAB;
+  --ln: #FFE3D4;
+  --ln2: #FBC9AB;
+  --w: #FFFFFF;
+  --bad: #C23D0C;
+
+  background: var(--w);
+  color: var(--k);
+  font-family: var(--body);
+  font-size: 15.5px;
+  line-height: 1.6;
+  min-height: 100%;
+  display: flex;
+  color-scheme: light;
+  /* Container queries as well as media queries: inside the Preview screen the
+     form sits in a phone-sized frame while the window is still wide, and only
+     a container query notices that. */
+  container-type: inline-size;
+  container-name: fsroot;
+}
+.fs *, .fs *::before, .fs *::after { box-sizing: border-box; }
+.fs .dsp {
+  font-family: var(--display); font-stretch: 116%; font-weight: 700;
+  letter-spacing: -.02em; line-height: 1.14; text-wrap: balance; margin: 0;
+}
+.fs .lbl {
+  font-family: var(--display); font-stretch: 112%; font-weight: 600;
+  font-size: 10.5px; letter-spacing: .17em; text-transform: uppercase;
+}
+.fs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fs-req { color: var(--o); margin-left: 3px; }
+.fs-err { color: var(--bad); font-size: 13.5px; margin-top: 10px; display: flex; align-items: center; gap: 6px; }
+.fs-help { color: var(--k3); font-size: 13.5px; margin-top: 4px; white-space: pre-wrap; }
+.fs-logo { color: var(--o); line-height: 0; display: block; }
+.fs-logo svg { width: 100%; height: auto; display: block; }
+
+/* shared field primitives ------------------------------------------------ */
+.fs-input, .fs-textarea, .fs-select {
+  width: 100%; font-family: var(--body); font-size: 15.5px; line-height: 1.5;
+  color: var(--k); background: var(--w);
+  transition: border-color .16s var(--ease), box-shadow .16s var(--ease);
+}
+.fs-textarea { min-height: 108px; resize: vertical; }
+.fs-input::placeholder, .fs-textarea::placeholder { color: var(--k4); }
+.fs-select { cursor: pointer; appearance: none; }
+.fs-narrow { max-width: 240px; }
+
+.fs-choices { display: flex; flex-direction: column; gap: 2px; }
+.fs-choice {
+  display: flex; align-items: center; gap: 13px; cursor: pointer;
+  font-family: var(--body); font-size: 15.5px; color: var(--k);
+  text-align: left; background: none; border: 0; padding: 0; width: 100%;
+}
+.fs-choice-txt { flex: 1; }
+.fs-other { display: flex; align-items: center; gap: 10px; flex: 1; }
+.fs-other input {
+  flex: 1; font: inherit; color: inherit; background: transparent;
+  border: 0; border-bottom: 1.5px solid var(--ln2); padding: 4px 2px;
+}
+.fs-other input:focus { outline: none; border-bottom-color: var(--o); }
+
+.fs-scale { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0; }
+.fs-scale label {
+  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  min-width: 48px; font-size: 14px; color: var(--k2); cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.fs-ends { display: flex; justify-content: space-between; gap: 16px; color: var(--k3); font-size: 13.5px; margin-top: 10px; }
+
+.fs-stars { display: flex; gap: 7px; }
+.fs-star {
+  background: none; border: 0; padding: 2px; cursor: pointer; color: var(--ln2);
+  line-height: 0; transition: color .13s var(--ease), transform .12s var(--ease);
+}
+.fs-star svg { width: 30px; height: 30px; }
+.fs-star:hover { transform: scale(1.14); }
+.fs-star.on { color: var(--o); }
+
+.fs-gridwrap { overflow-x: auto; }
+.fs-grid { border-collapse: collapse; width: 100%; min-width: 420px; font-size: 14.5px; }
+.fs-grid th, .fs-grid td { padding: 12px 14px; text-align: center; border-bottom: 1px solid var(--ln); }
+.fs-grid th:first-child, .fs-grid td:first-child { text-align: left; font-weight: 500; }
+.fs-grid thead th { color: var(--k3); font-size: 13px; font-weight: 600; }
+.fs-grid tbody tr:last-child td { border-bottom: 0; }
+.fs input[type="radio"], .fs input[type="checkbox"] { accent-color: var(--o); cursor: pointer; margin: 0; flex: none; }
+
+.fs-submit {
+  font-family: var(--display); font-stretch: 116%; font-weight: 700;
+  cursor: pointer; border: 0; display: inline-flex; align-items: center;
+  justify-content: center; gap: 10px;
+  transition: background .16s var(--ease), transform .07s var(--ease);
+}
+.fs-submit:active { transform: translateY(1px); }
+.fs-submit[disabled] { opacity: .55; pointer-events: none; }
+.fs-clear {
+  background: none; border: 0; font-family: var(--body); font-size: 14.5px;
+  color: var(--k3); cursor: pointer; text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fs-clear:hover { color: var(--k); }
+
+/* Focus rings: the app's global ring is a rounded box, which is wrong on an
+   underline input. Inside a form, fields show focus through their own border
+   and everything else gets a clean outline. */
+.fs :focus-visible { box-shadow: none; outline: 2.5px solid var(--o); outline-offset: 3px; }
+.fs .fs-input:focus-visible,
+.fs .fs-textarea:focus-visible,
+.fs .fs-select:focus-visible,
+.fs .fs-other input:focus-visible { outline: none; }
+
+/* the "thank you" state, shared shape, styled per look */
+.fs-done { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.fs-done .tick { color: var(--o); }
+.fs-done h2 { font-size: 27px; }
+.fs-done p { color: var(--k3); max-width: 46ch; }
+
+.fs-closed {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--o-l); border-left: 4px solid var(--o);
+  padding: 16px 18px; color: var(--k2); font-size: 14.5px;
+}
+
+/* ==========================================================================
+   01 — REGISTER
+   Type-led. No cards, no boxes. Big orange numerals in the margin, hairline
+   rules between questions, inputs that are a line you write on.
+   ========================================================================== */
+
+.fs-register .fs-main { max-width: 860px; margin: 0 auto; width: 100%; }
+.fs-register .fs-head { padding: 56px 60px 34px; border-bottom: 3px solid var(--o); }
+.fs-register .fs-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; }
+.fs-register .fs-logo { width: 30px; }
+.fs-register .fs-brand span {
+  font-family: var(--display); font-stretch: 122%; font-weight: 800;
+  font-size: 11.5px; letter-spacing: .24em;
+}
+.fs-register .fs-head h1 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 800; }
+.fs-register .fs-desc { margin-top: 16px; color: var(--k2); max-width: 56ch; white-space: pre-wrap; }
+.fs-register .fs-headnote { margin-top: 20px; color: var(--k3); font-size: 13.5px; }
+
+.fs-register .fs-q {
+  display: grid; grid-template-columns: 128px 1fr;
+  border-bottom: 1px solid var(--ln); padding: 34px 60px 34px 0;
+}
+.fs-register .fs-q.invalid { background: var(--o-l); }
+.fs-register .fs-n {
+  padding-left: 60px; font-family: var(--display); font-stretch: 125%;
+  font-weight: 800; font-size: 34px; line-height: 1; color: var(--o);
+  font-variant-numeric: tabular-nums;
+}
+.fs-register .fs-qtitle { font-family: var(--display); font-stretch: 114%; font-weight: 700; font-size: 20px; letter-spacing: -.015em; }
+.fs-register .fs-field { margin-top: 20px; }
+
+.fs-register .fs-input, .fs-register .fs-textarea, .fs-register .fs-select {
+  border: 0; border-bottom: 1.5px solid var(--ln2); border-radius: 0;
+  padding: 9px 2px 11px; max-width: 460px; background: transparent;
+}
+.fs-register .fs-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23806E60' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 6px center; background-size: 16px;
+  padding-right: 30px;
+}
+.fs-register .fs-textarea { border: 1.5px solid var(--ln2); padding: 12px 14px; max-width: 560px; }
+.fs-register .fs-input:focus, .fs-register .fs-textarea:focus, .fs-register .fs-select:focus {
+  outline: none; border-color: var(--o); border-bottom-width: 2.5px;
+}
+.fs-register .fs-choice { padding: 9px 0; }
+.fs-register .fs-mark {
+  width: 18px; height: 18px; border: 1.5px solid var(--ln2); flex: none;
+  transition: background .14s var(--ease), border-color .14s var(--ease);
+}
+.fs-register .fs-choice:hover .fs-mark { border-color: var(--o-d); }
+.fs-register .fs-choice.on .fs-mark { border-color: var(--o); background: var(--o); box-shadow: inset 0 0 0 3.5px #fff; }
+.fs-register .fs-choice.on { font-weight: 500; }
+.fs-register .fs-foot {
+  padding: 40px 60px 60px; display: flex; align-items: center;
+  justify-content: space-between; gap: 24px; flex-wrap: wrap;
+}
+.fs-register .fs-submit { background: var(--o); color: #fff; padding: 16px 42px; font-size: 15.5px; border-radius: 0; }
+.fs-register .fs-submit:hover { background: var(--o-dd); }
+.fs-register .fs-section {
+  padding: 44px 60px 20px; border-bottom: 1px solid var(--ln);
+  border-top: 3px solid var(--o); margin-top: -1px;
+}
+.fs-register .fs-section h2 { font-size: 25px; font-weight: 800; }
+@media (max-width: 680px) {
+  .fs-register .fs-head { padding: 36px 24px 26px; }
+  .fs-register .fs-q { grid-template-columns: 62px 1fr; padding: 26px 24px 26px 0; }
+  .fs-register .fs-n { padding-left: 24px; font-size: 24px; }
+  .fs-register .fs-foot, .fs-register .fs-section { padding-left: 24px; padding-right: 24px; }
+}
+
+/* ==========================================================================
+   02 — PANEL
+   A solid orange wall carrying the shield, title, sections and progress that
+   never scrolls away. Choices are chips. The brand is present throughout.
+   ========================================================================== */
+
+.fs-panel { align-items: stretch; }
+.fs-panel .fs-side {
+  width: 340px; flex: none; position: relative; overflow: hidden;
+  background: linear-gradient(158deg, var(--o) 0%, var(--o-d) 54%, var(--o-dd) 100%);
+  color: #fff; padding: 44px 36px 36px; display: flex; flex-direction: column;
+}
+.fs-panel .fs-side::after {
+  content: ""; position: absolute; right: -90px; bottom: -130px;
+  width: 300px; height: 300px; border-radius: 50%; background: rgba(255, 255, 255, .08);
+}
+.fs-panel .fs-side > * { position: relative; }
+.fs-panel .fs-logo { width: 48px; color: #fff; margin-bottom: 38px; }
+.fs-panel .fs-side h1 { font-size: 28px; font-weight: 800; color: #fff; }
+.fs-panel .fs-desc { margin-top: 14px; color: rgba(255, 255, 255, .84); font-size: 14px; white-space: pre-wrap; }
+
+.fs-panel .fs-steps { margin-top: 40px; display: flex; flex-direction: column; }
+.fs-panel .fs-step { display: flex; gap: 15px; align-items: flex-start; padding-bottom: 24px; position: relative; }
+.fs-panel .fs-step::before {
+  content: ""; position: absolute; left: 8px; top: 21px; bottom: 0;
+  width: 1.5px; background: rgba(255, 255, 255, .3);
+}
+.fs-panel .fs-step:last-child { padding-bottom: 0; }
+.fs-panel .fs-step:last-child::before { display: none; }
+.fs-panel .fs-stepdot {
+  width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .55);
+  flex: none; margin-top: 2px; background: var(--o-d); z-index: 1;
+  transition: background .2s var(--ease), box-shadow .2s var(--ease);
+}
+.fs-panel .fs-step.done .fs-stepdot { background: #fff; border-color: #fff; }
+.fs-panel .fs-step.now .fs-stepdot { background: #fff; border-color: #fff; box-shadow: 0 0 0 5px rgba(255, 255, 255, .25); }
+.fs-panel .fs-step b { font-size: 14.5px; font-weight: 600; display: block; }
+.fs-panel .fs-step s { display: block; text-decoration: none; font-size: 12.5px; color: rgba(255, 255, 255, .74); margin-top: 1px; }
+.fs-panel .fs-step.pending b { color: rgba(255, 255, 255, .66); }
+
+.fs-panel .fs-prog { margin-top: auto; padding-top: 44px; }
+.fs-panel .fs-prog .lbl { color: rgba(255, 255, 255, .8); }
+.fs-panel .fs-track { height: 5px; background: rgba(255, 255, 255, .28); border-radius: 99px; margin-top: 10px; overflow: hidden; }
+.fs-panel .fs-track i { display: block; height: 100%; background: #fff; border-radius: 99px; transition: width .35s var(--ease); }
+
+.fs-panel .fs-main { padding: 46px 48px 64px; max-width: 760px; }
+.fs-panel .fs-head { display: none; }
+.fs-panel .fs-flow { display: flex; flex-direction: column; gap: 34px; }
+.fs-panel .fs-n { display: none; }
+.fs-panel .fs-qtitle { font-family: var(--display); font-stretch: 114%; font-weight: 700; font-size: 18.5px; letter-spacing: -.015em; }
+.fs-panel .fs-field { margin-top: 16px; }
+.fs-panel .fs-q.invalid .fs-qtitle { color: var(--bad); }
+
+.fs-panel .fs-input, .fs-panel .fs-textarea, .fs-panel .fs-select {
+  border: 1.5px solid var(--ln); border-radius: 12px; padding: 13px 15px;
+}
+.fs-panel .fs-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23806E60' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center; background-size: 16px; padding-right: 38px;
+}
+.fs-panel .fs-input:focus, .fs-panel .fs-textarea:focus, .fs-panel .fs-select:focus {
+  outline: none; border-color: var(--o); box-shadow: 0 0 0 4px rgba(240, 101, 34, .14);
+}
+
+/* choices become chips */
+.fs-panel .fs-choices { flex-direction: row; flex-wrap: wrap; gap: 10px; }
+.fs-panel .fs-choice {
+  width: auto; border: 1.5px solid var(--ln); border-radius: 99px;
+  padding: 10px 18px; font-size: 14.5px; color: var(--k2); gap: 0;
+  transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
+}
+.fs-panel .fs-choice:hover { border-color: var(--o); background: var(--o-l); }
+.fs-panel .fs-mark { display: none; }
+.fs-panel .fs-choice.on { background: var(--o); border-color: var(--o); color: #fff; font-weight: 600; }
+.fs-panel .fs-choice.other-chip { border-radius: 12px; padding: 10px 16px; }
+.fs-panel .fs-choice.other-chip.on { background: var(--o-l); color: var(--k); border-color: var(--o); }
+
+/* linear scale becomes a segmented control */
+.fs-panel .fs-scale { gap: 0; border: 1.5px solid var(--ln); border-radius: 12px; overflow: hidden; width: fit-content; max-width: 100%; }
+.fs-panel .fs-scale label {
+  min-width: 0; padding: 11px 20px; border-right: 1.5px solid var(--ln);
+  gap: 0; font-size: 14.5px; transition: background .14s var(--ease), color .14s var(--ease);
+}
+.fs-panel .fs-scale label:last-child { border-right: 0; }
+.fs-panel .fs-scale label:hover { background: var(--o-l); }
+.fs-panel .fs-scale input { position: absolute; opacity: 0; width: 0; height: 0; }
+.fs-panel .fs-scale label.on { background: var(--o); color: #fff; font-weight: 700; }
+
+.fs-panel .fs-gridwrap { border: 1.5px solid var(--ln); border-radius: 12px; }
+.fs-panel .fs-grid tbody tr:nth-child(odd) { background: var(--o-l); }
+
+.fs-panel .fs-foot { margin-top: 38px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.fs-panel .fs-submit { background: var(--o); color: #fff; border-radius: 12px; padding: 15px 32px; font-size: 15px; }
+.fs-panel .fs-submit:hover { background: var(--o-dd); }
+.fs-panel .fs-section { padding-top: 8px; }
+.fs-panel .fs-section h2 { font-size: 21px; padding-bottom: 10px; border-bottom: 2px solid var(--o); display: inline-block; }
+
+@media (max-width: 860px) {
+  .fs-panel { flex-direction: column; }
+  .fs-panel .fs-side { width: 100%; padding: 30px 24px 26px; }
+  .fs-panel .fs-steps, .fs-panel .fs-prog { display: none; }
+  .fs-panel .fs-logo { margin-bottom: 22px; width: 40px; }
+  .fs-panel .fs-main { padding: 30px 24px 60px; }
+}
+
+/* ==========================================================================
+   03 — FOCUS
+   One question at a time, keyboard-first. Big type, lettered options, the
+   shield ghosted into the corner. Built for a phone.
+   ========================================================================== */
+
+.fs-focus { flex-direction: column; position: relative; overflow: hidden; }
+.fs-focus .fs-watermark {
+  position: absolute; right: -130px; bottom: -200px; width: 460px;
+  color: var(--o); opacity: .05; pointer-events: none; z-index: 0; line-height: 0;
+}
+.fs-focus .fs-watermark svg { width: 100%; height: auto; display: block; }
+
+.fs-focus .fs-topbar { height: 4px; background: var(--o-ll); flex: none; }
+.fs-focus .fs-topbar i { display: block; height: 100%; background: var(--o); transition: width .4s var(--ease); }
+.fs-focus .fs-crumb {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 28px; border-bottom: 1px solid var(--ln); flex: none;
+  position: relative; z-index: 1; background: var(--w);
+}
+.fs-focus .fs-crumb .l { display: flex; align-items: center; gap: 11px; }
+.fs-focus .fs-logo { width: 24px; }
+.fs-focus .fs-crumb b { font-family: var(--display); font-stretch: 122%; font-weight: 800; font-size: 10.5px; letter-spacing: .22em; }
+.fs-focus .fs-crumb .lbl { color: var(--k3); }
+
+.fs-focus .fs-main { position: relative; z-index: 1; }
+.fs-focus .fs-head {
+  padding: 60px 28px 20px; max-width: 620px; margin: 0 auto; width: 100%;
+}
+.fs-focus .fs-head h1 { font-size: clamp(28px, 4.6vw, 38px); font-weight: 800; }
+.fs-focus .fs-desc { margin-top: 14px; color: var(--k3); white-space: pre-wrap; }
+
+.fs-focus .fs-flow { flex: 1; padding: 48px 28px 24px; }
+.fs-focus .fs-q { max-width: 620px; margin: 0 auto; width: 100%; animation: fsIn .28s var(--ease); }
+@keyframes fsIn { from { opacity: 0; transform: translateY(10px); } }
+.fs-focus .fs-n { color: var(--o); margin-bottom: 16px; font-family: var(--display); font-stretch: 112%; font-weight: 600; font-size: 10.5px; letter-spacing: .17em; text-transform: uppercase; }
+.fs-focus .fs-qtitle { font-family: var(--display); font-stretch: 116%; font-weight: 800; font-size: clamp(23px, 3.4vw, 31px); letter-spacing: -.022em; }
+.fs-focus .fs-help { font-size: 15px; margin-top: 12px; }
+.fs-focus .fs-field { margin-top: 30px; }
+
+.fs-focus .fs-input, .fs-focus .fs-textarea, .fs-focus .fs-select {
+  border: 0; border-bottom: 2px solid var(--ln2); border-radius: 0;
+  padding: 12px 2px; font-size: 20px;
+}
+.fs-focus .fs-textarea { font-size: 18px; border: 2px solid var(--ln2); border-radius: 14px; padding: 15px 17px; }
+.fs-focus .fs-select {
+  border: 2px solid var(--ln2); border-radius: 14px; padding: 15px 17px; font-size: 17px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23806E60' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 15px center; background-size: 18px; padding-right: 44px;
+}
+.fs-focus .fs-input:focus, .fs-focus .fs-textarea:focus, .fs-focus .fs-select:focus { outline: none; border-color: var(--o); }
+
+.fs-focus .fs-choices { gap: 10px; }
+.fs-focus .fs-choice {
+  border: 1.5px solid var(--ln); border-radius: 14px; padding: 15px 18px;
+  gap: 15px; background: var(--w);
+  transition: border-color .16s var(--ease), background .16s var(--ease), transform .13s var(--ease);
+}
+.fs-focus .fs-choice:hover { border-color: var(--o); background: var(--o-l); transform: translateX(4px); }
+.fs-focus .fs-choice.on { border-color: var(--o); background: var(--o-l); }
+.fs-focus .fs-mark {
+  width: 30px; height: 30px; border-radius: 8px; background: var(--o-l); color: var(--o-dd);
+  display: grid; place-items: center; flex: none;
+  font-family: var(--display); font-stretch: 114%; font-weight: 700; font-size: 13px;
+  transition: background .16s var(--ease), color .16s var(--ease);
+}
+.fs-focus .fs-choice:hover .fs-mark, .fs-focus .fs-choice.on .fs-mark { background: var(--o); color: #fff; }
+
+.fs-focus .fs-scale { justify-content: flex-start; gap: 10px; }
+.fs-focus .fs-scale label {
+  border: 1.5px solid var(--ln); border-radius: 12px; padding: 14px 0; min-width: 56px;
+  font-size: 16px; gap: 0; transition: border-color .14s var(--ease), background .14s var(--ease);
+}
+.fs-focus .fs-scale label:hover { border-color: var(--o); background: var(--o-l); }
+.fs-focus .fs-scale input { position: absolute; opacity: 0; width: 0; height: 0; }
+.fs-focus .fs-scale label.on { border-color: var(--o); background: var(--o); color: #fff; font-weight: 700; }
+.fs-focus .fs-star svg { width: 38px; height: 38px; }
+
+.fs-focus .fs-nav {
+  flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 20px 28px 24px; border-top: 1px solid var(--ln);
+  position: relative; z-index: 1; background: var(--w);
+}
+.fs-focus .fs-nav .inner { max-width: 620px; margin: 0 auto; width: 100%; display: flex; align-items: center; gap: 14px; }
+.fs-focus .fs-submit, .fs-focus .fs-next {
+  background: var(--o); color: #fff; border-radius: 12px; padding: 13px 30px; font-size: 15px;
+  font-family: var(--display); font-stretch: 116%; font-weight: 700; border: 0; cursor: pointer;
+}
+.fs-focus .fs-next:hover, .fs-focus .fs-submit:hover { background: var(--o-dd); }
+.fs-focus .fs-back {
+  background: transparent; border: 1.5px solid var(--ln); border-radius: 12px;
+  padding: 12px 22px; font-family: var(--body); font-size: 14px; color: var(--k2); cursor: pointer;
+}
+.fs-focus .fs-back:hover { border-color: var(--k3); }
+.fs-focus .fs-back[disabled] { opacity: .4; pointer-events: none; }
+.fs-focus .fs-kbd { margin-left: auto; font-size: 13px; color: var(--k3); }
+.fs-focus .fs-kbd kbd {
+  font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 11.5px;
+  background: var(--o-l); border: 1px solid var(--ln); border-radius: 6px;
+  padding: 3px 8px; color: var(--o-dd);
+}
+.fs-focus .fs-section { max-width: 620px; margin: 0 auto; text-align: center; }
+.fs-focus .fs-section h2 { font-size: 30px; font-weight: 800; }
+@media (max-width: 560px) {
+  .fs-focus .fs-kbd { display: none; }
+  .fs-focus .fs-flow { padding: 32px 20px 20px; }
+  .fs-focus .fs-nav { padding: 16px 20px 20px; }
+}
+
+/* ==========================================================================
+   Done screens, per style
+   ========================================================================== */
+
+.fs-register .fs-done { padding: 90px 60px; }
+.fs-panel .fs-done { padding: 60px 0; align-items: flex-start; text-align: left; }
+.fs-focus .fs-done { padding: 80px 28px; }
+.fs-done .tick svg { width: 60px; height: 60px; }
+
+
+/* ==========================================================================
+   Narrow-container rules — mirror the media queries above so the phone frame
+   in Preview behaves exactly like a real phone.
+   ========================================================================== */
+
+@container fsroot (max-width: 680px) {
+  .fs-register .fs-head { padding: 36px 24px 26px; }
+  .fs-register .fs-q { grid-template-columns: 62px 1fr; padding: 26px 24px 26px 0; }
+  .fs-register .fs-n { padding-left: 24px; font-size: 24px; }
+  .fs-register .fs-foot, .fs-register .fs-section { padding-left: 24px; padding-right: 24px; }
+}
+
+@container fsroot (max-width: 860px) {
+  .fs-panel { flex-direction: column; }
+  .fs-panel .fs-side { width: 100%; padding: 30px 24px 26px; }
+  .fs-panel .fs-steps, .fs-panel .fs-prog { display: none; }
+  .fs-panel .fs-logo { margin-bottom: 22px; width: 40px; }
+  .fs-panel .fs-main { padding: 30px 24px 60px; }
+}
+
+@container fsroot (max-width: 560px) {
+  .fs-focus .fs-kbd { display: none; }
+  .fs-focus .fs-flow { padding: 32px 20px 20px; }
+  .fs-focus .fs-nav { padding: 16px 20px 20px; }
+  .fs-focus .fs-watermark { width: 290px; right: -110px; bottom: -160px; opacity: .04; }
+  .fs-focus .fs-crumb { padding: 14px 20px; }
+  .fs-panel .fs-scale label { padding: 11px 14px; }
+}

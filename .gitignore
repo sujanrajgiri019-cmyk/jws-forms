@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# Rust / Tauri
+src-tauri/target
+src-tauri/gen
+
+# Updater signing keys — NEVER commit these
+*.key
+*.key.pub
+.tauri/

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "JWS Forms",
+  "version": "0.1.0",
+  "identifier": "np.edu.jws.forms",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "JWS Forms",
+        "width": 1280,
+        "height": 840,
+        "minWidth": 1024,
+        "minHeight": 680,
+        "resizable": true,
+        "center": true,
+        "decorations": true,
+        "theme": null
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:;"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "msi"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "copyright": "\u00a9 JWS School",
+    "category": "Productivity",
+    "shortDescription": "School-branded form builder",
+    "longDescription": "Build beautiful, JWS-branded forms and collect responses straight into Excel \u2014 fully offline, on your own PC.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVDMkFCRDJBOEVDRkE3NzUKUldSMXA4K09LcjBxWE9FWFJObmhwMmN2Yi93MmxuVnVNUlJ4NnBSdklZM2xVWDBabythYjl2ZXUK",
+      "endpoints": [
+        "https://github.com/sujanrajgiri019-cmyk/jws-forms/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

@@ -1,0 +1,55 @@
+[package]
+name = "jws-forms"
+version = "0.1.0"
+description = "JWS Forms — school-branded form builder"
+authors = ["JWS School"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "jws_forms_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Excel read + write
+rust_xlsxwriter = "0.79"
+calamine = "0.26"
+
+# LAN sharing server
+axum = { version = "0.7", features = ["json"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "sync"] }
+tower-http = { version = "0.6", features = ["cors"] }
+local-ip-address = "0.6"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+dirs = "5"
+anyhow = "1"
+percent-encoding = "2"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+
+[features]
+# This feature is used for production builds where `devUrl` points to the filesystem.
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
