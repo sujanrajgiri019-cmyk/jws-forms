@@ -27,7 +27,11 @@ export type FormStyle =
   | "letterhead"
   | "cards"
   | "cover"
-  | "split";
+  | "split"
+  | "arena"
+  | "prospectus"
+  | "terminal"
+  | "community";
 
 /**
  * The colourway a form wears on top of its style.
@@ -42,7 +46,15 @@ export type Colorway = "brand" | "auto" | "royal" | "amber" | "navy";
 export interface Choice {
   id: string;
   label: string;
+  /**
+   * Section routing, on a multiple-choice option. The id of a section block, or
+   * `SUBMIT_SECTION` to finish the form. Empty means "carry straight on".
+   */
+  goTo?: string;
 }
+
+/** The sentinel a section destination uses to mean "submit the form here". */
+export const SUBMIT_SECTION = "__submit__";
 
 export interface Scale {
   min: number;
@@ -122,8 +134,39 @@ export interface Question {
   /** What to say when `pattern` fails. */
   patternMessage: string;
 
+  /* Response validation, the way Google Forms shapes it. Empty string means
+     "no limit" rather than 0, so a blank box is never read as a rule. */
+  /** Smallest acceptable number. */
+  minNumber: string;
+  /** Largest acceptable number. */
+  maxNumber: string;
+  /** Fewest characters for a text answer. */
+  minLength: string;
+  /** Most characters for a text answer. */
+  maxLength: string;
+  /** How many boxes must be ticked: "" | "at_least" | "at_most" | "exactly". */
+  countRule: "" | "at_least" | "at_most" | "exactly";
+  countValue: string;
+
+  /* Quiz marking. Only read when the form is a quiz. */
+  /** Marks this question is worth. */
+  points: string;
+  /** Accepted answers. For choice questions these are option labels. */
+  answerKey: string[];
+  /** Shown after submitting when the answer was right. */
+  feedbackCorrect: string;
+  /** Shown after submitting when it was wrong. */
+  feedbackWrong: string;
+
   /** Show or hide this block depending on earlier answers. */
   conditions?: QuestionConditions;
+
+  /**
+   * On a "section" block: where to go once this section is finished. The id of
+   * a later section, `SUBMIT_SECTION`, or empty for the next section in order.
+   * A multiple-choice answer routing elsewhere overrides this.
+   */
+  nextSection?: string;
 }
 
 /* --------------------------------------------------------------- receipts */
@@ -160,6 +203,12 @@ export interface FormSettings {
   /** High-contrast dark mode, for an unattended counter laptop. */
   kiosk: boolean;
   receipt: ReceiptSettings;
+  /** Shuffle the questions inside each section, the way Google Forms can. */
+  shuffleQuestions: boolean;
+  /** Marks answers against the key and writes a score column. */
+  quiz: boolean;
+  /** Show each respondent their score and feedback straight after submitting. */
+  quizShowScore: boolean;
   /**
    * Optional endpoint POSTed after a response is safely on disk. Fired on a
    * background thread — a slow or unreachable endpoint never delays or fails a

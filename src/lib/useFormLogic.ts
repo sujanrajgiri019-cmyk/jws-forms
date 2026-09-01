@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
-import { hiddenIds } from "./logic";
-import { buildRow, completion, isDisplayBlock, validate } from "./answers";
+import { hiddenIds, sectionsOf } from "./logic";
+import { buildRow, completion, isDisplayBlock, shuffled, validate } from "./answers";
 import type { Answers, AnswerValue, FormDef, Question } from "../types";
 
 export interface FormLogic {
@@ -35,10 +35,24 @@ export function useFormLogic(form: FormDef | null, answers: Answers): FormLogic 
     [form, answers]
   );
 
-  const visible = useMemo(
-    () => (form ? form.questions.filter((q) => !hidden.has(q.id)) : []),
-    [form, hidden]
-  );
+  const visible = useMemo(() => {
+    if (!form) return [];
+    const onScreen = form.questions.filter((q) => !hidden.has(q.id));
+    if (!form.settings.shuffleQuestions) return onScreen;
+
+    // Shuffle inside each section, never across one: a section heading is a
+    // promise about what follows it. The order is seeded per section, so it
+    // holds still while somebody is answering rather than jumping on each
+    // keystroke.
+    const out: typeof onScreen = [];
+    for (const sec of sectionsOf(form)) {
+      const here = sec.blocks.filter((b) => !hidden.has(b.id));
+      const head = here.filter((b) => b.type === "section");
+      const rest = here.filter((b) => b.type !== "section");
+      out.push(...head, ...shuffled(rest, true, form.id + sec.id));
+    }
+    return out;
+  }, [form, hidden]);
 
   const answerable = useMemo(
     () => visible.filter((q) => !isDisplayBlock(q.type)),

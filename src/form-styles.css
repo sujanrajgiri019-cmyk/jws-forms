@@ -239,6 +239,20 @@
 .fs-panel .fs-side h1 { font-size: 28px; font-weight: 800; color: #fff; }
 .fs-panel .fs-desc { margin-top: 14px; color: rgba(255, 255, 255, .84); font-size: 14px; white-space: pre-wrap; }
 
+/* The step list belongs to the side panel, not to one style that happens to
+   have had it first — Split and Prospectus share the same component. */
+.fs-steps { margin-top: 40px; display: flex; flex-direction: column; }
+.fs-step { display: flex; gap: 15px; align-items: flex-start; padding-bottom: 24px; position: relative; }
+.fs-step:last-child { padding-bottom: 0; }
+.fs-stepdot {
+  width: 11px; height: 11px; border-radius: 50%; flex: none; margin-top: 5px;
+  border: 2px solid rgba(255, 255, 255, .5);
+}
+.fs-step.done .fs-stepdot, .fs-step.now .fs-stepdot { background: #fff; border-color: #fff; }
+.fs-step.now .fs-stepdot { box-shadow: 0 0 0 5px rgba(255, 255, 255, .25); }
+.fs-step b { font-size: 14.5px; font-weight: 600; display: block; }
+.fs-step s { display: block; text-decoration: none; font-size: 12.5px; color: rgba(255, 255, 255, .74); margin-top: 1px; }
+
 .fs-panel .fs-steps { margin-top: 40px; display: flex; flex-direction: column; }
 .fs-panel .fs-step { display: flex; gap: 15px; align-items: flex-start; padding-bottom: 24px; position: relative; }
 .fs-panel .fs-step::before {
@@ -968,4 +982,392 @@
   #jws-slip .slip-token { border-color: #000; background: transparent; }
   #jws-slip .slip-token b, #jws-slip .slip-token .lbl { color: #000; }
   .fs-slipacts, .topbar, .tabs, .rail { display: none !important; }
+}
+
+/* ==========================================================================
+   08 — ARENA
+   Athletic and loud. Near-black ground, orange that reads as floodlight
+   rather than neon, all-caps display type, and nothing rounded anywhere.
+   The brief asked for neon; the school's mark is #F06522 and that is what
+   this uses — a foreign orange beside the JWS shield looks like a mistake.
+   ========================================================================== */
+
+.fs-arena {
+  --w: #0B0C0F; --k: #FFFFFF; --k2: #C3C7CF; --k3: #8A8F99; --k4: #5C616B;
+  --ln: #1E2128; --ln2: #2E323C; --o-l: #15161B; --o-ll: #1C1E25;
+  color-scheme: dark;
+  background: var(--w); color: var(--k);
+  flex-direction: column;
+}
+.fs-arena .fs-main { max-width: 940px; margin: 0 auto; width: 100%; }
+.fs-arena .fs-head {
+  padding: 52px 40px 34px; border-bottom: 3px solid var(--o); position: relative;
+}
+.fs-arena .fs-head::before {
+  /* A diagonal hazard flash — the one decorative move this style gets. */
+  content: ""; position: absolute; inset: auto 0 0 0; height: 6px;
+  background: repeating-linear-gradient(115deg, var(--o) 0 22px, transparent 22px 44px);
+  opacity: .5;
+}
+.fs-arena .fs-head h1 {
+  text-transform: uppercase; font-stretch: 122%; font-weight: 900;
+  font-size: clamp(34px, 6vw, 62px); letter-spacing: -.01em; margin-top: 22px;
+}
+.fs-arena .fs-desc { color: var(--k2); margin-top: 14px; white-space: pre-wrap; }
+.fs-arena .fs-headnote { color: var(--k3); margin-top: 16px; font-size: 13px; }
+.fs-arena .letterhead img { background: #fff; padding: 5px; }
+.fs-arena .lh-name { color: #fff; }
+.fs-arena .lh-contact { color: var(--k3); }
+
+.fs-arena .fs-flow { padding: 8px 40px 0; display: flex; flex-direction: column; }
+.fs-arena .fs-q {
+  display: grid; grid-template-columns: 82px 1fr; gap: 0;
+  border-bottom: 1px solid var(--ln); padding: 26px 0;
+}
+.fs-arena .fs-q.invalid { background: rgba(240, 101, 34, .07); }
+.fs-arena .fs-n {
+  font-family: var(--display); font-stretch: 124%; font-weight: 900;
+  font-size: 30px; line-height: 1; color: var(--o);
+  font-variant-numeric: tabular-nums;
+}
+.fs-arena .fs-qtitle {
+  text-transform: uppercase; font-family: var(--display); font-stretch: 116%;
+  font-weight: 800; font-size: 17px; letter-spacing: .01em;
+}
+.fs-arena .fs-field { margin-top: 14px; }
+.fs-arena .fs-input, .fs-arena .fs-textarea, .fs-arena .fs-select {
+  background: #12141A; color: #fff; border: 2px solid var(--ln2);
+  border-radius: 0; padding: 13px 15px; font-size: 16px;
+}
+.fs-arena .fs-input:focus, .fs-arena .fs-textarea:focus, .fs-arena .fs-select:focus {
+  outline: none; border-color: var(--o);
+  box-shadow: 0 0 0 3px rgba(240, 101, 34, .28), 0 0 22px -4px rgba(240, 101, 34, .5);
+}
+.fs-arena .fs-choices { gap: 8px; }
+.fs-arena .fs-choice {
+  background: #12141A; border: 2px solid var(--ln2); border-radius: 0;
+  padding: 13px 16px; color: var(--k); text-transform: uppercase;
+  font-family: var(--display); font-stretch: 110%; font-weight: 600; font-size: 13.5px;
+  letter-spacing: .04em;
+}
+.fs-arena .fs-mark { display: none; }
+.fs-arena .fs-choice:hover { border-color: var(--o); }
+.fs-arena .fs-choice.on {
+  background: var(--o); border-color: var(--o); color: #0B0C0F; font-weight: 800;
+  box-shadow: 0 0 24px -6px rgba(240, 101, 34, .75);
+}
+.fs-arena .fs-section { padding: 34px 0 8px; border-bottom: 3px solid var(--o); }
+.fs-arena .fs-section h2 {
+  text-transform: uppercase; font-stretch: 120%; font-weight: 900; font-size: 24px; color: #fff;
+}
+.fs-arena .fs-grid th, .fs-arena .fs-grid td { border-color: var(--ln); }
+.fs-arena .fs-drop { background: #12141A; border-color: var(--ln2); border-radius: 0; }
+.fs-arena .fs-drop b { color: var(--o); }
+.fs-arena .fs-foot { padding: 32px 40px 70px; display: flex; align-items: center; gap: 20px; }
+.fs-arena .fs-submit {
+  background: var(--o); color: #0B0C0F; border-radius: 0;
+  padding: 17px 44px; font-size: 15px; text-transform: uppercase;
+  font-family: var(--display); font-stretch: 116%; font-weight: 900; letter-spacing: .05em;
+  box-shadow: 0 0 30px -8px rgba(240, 101, 34, .8);
+}
+.fs-arena .fs-submit:hover { background: #fff; }
+.fs-arena .fs-done { padding: 80px 40px; }
+@container fsroot (max-width: 680px) {
+  .fs-arena .fs-head, .fs-arena .fs-flow, .fs-arena .fs-foot { padding-left: 20px; padding-right: 20px; }
+  .fs-arena .fs-q { grid-template-columns: 54px 1fr; }
+  .fs-arena .fs-n { font-size: 22px; }
+}
+
+/* ==========================================================================
+   09 — PROSPECTUS
+   Prestigious and informational. A sticky 40% panel carrying the programme
+   description, and a 60% canvas of generous white with serif headings.
+   ========================================================================== */
+
+.fs-prospectus { align-items: stretch; }
+.fs-prospectus .fs-side {
+  position: sticky; top: 0; align-self: flex-start;
+  width: 40%; max-width: 520px; min-height: 100vh; height: 100vh;
+  padding: 60px 48px; display: flex; flex-direction: column;
+  color: #fff; overflow: hidden;
+  background:
+    /* A quiet lattice, the sort embossed on a prospectus cover. */
+    repeating-linear-gradient(45deg, rgba(255,255,255,.05) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,.05) 0 1px, transparent 1px 14px),
+    linear-gradient(165deg, var(--o-d) 0%, var(--o-dd) 78%);
+}
+.fs-prospectus .fs-side h1 {
+  font-family: Georgia, "Times New Roman", serif; font-weight: 400;
+  font-size: clamp(30px, 3.2vw, 44px); line-height: 1.14; letter-spacing: -.01em;
+  margin-top: 34px;
+}
+.fs-prospectus .fs-desc {
+  color: rgba(255,255,255,.9); margin-top: 18px; white-space: pre-wrap;
+  font-size: 15px; line-height: 1.8; max-width: 44ch;
+}
+.fs-prospectus .fs-steps { margin-top: 30px; }
+.fs-prospectus .fs-prog { margin-top: auto; padding-top: 26px; }
+
+.fs-prospectus .fs-main { background: var(--w); }
+.fs-prospectus .fs-flow {
+  max-width: 660px; margin: 0 auto; width: 100%; padding: 64px 52px 0;
+  display: flex; flex-direction: column;
+}
+.fs-prospectus .fs-q { padding: 30px 0; border-bottom: 1px solid var(--ln); }
+.fs-prospectus .fs-q.invalid { background: var(--o-l); }
+.fs-prospectus .fs-n {
+  font-family: Georgia, "Times New Roman", serif; font-style: italic;
+  font-size: 13px; color: var(--o-d); margin-bottom: 6px;
+}
+.fs-prospectus .fs-qtitle {
+  font-family: Georgia, "Times New Roman", serif; font-weight: 400;
+  font-size: 21px; line-height: 1.35; letter-spacing: -.005em;
+}
+.fs-prospectus .fs-help { font-size: 14px; margin-top: 7px; }
+.fs-prospectus .fs-field { margin-top: 18px; }
+.fs-prospectus .fs-input, .fs-prospectus .fs-textarea, .fs-prospectus .fs-select {
+  border: 0; border-bottom: 1px solid var(--ln2); border-radius: 0;
+  padding: 12px 2px; font-size: 16.5px; background: transparent;
+}
+.fs-prospectus .fs-input:focus, .fs-prospectus .fs-textarea:focus, .fs-prospectus .fs-select:focus {
+  outline: none; border-bottom: 2px solid var(--o); padding-bottom: 11px;
+}
+.fs-prospectus .fs-textarea { border: 1px solid var(--ln2); padding: 14px 16px; }
+.fs-prospectus .fs-choices { gap: 2px; }
+.fs-prospectus .fs-choice {
+  border: 0; border-bottom: 1px dotted var(--ln2); border-radius: 0;
+  padding: 13px 4px; background: transparent;
+}
+.fs-prospectus .fs-choice .fs-mark {
+  width: 16px; height: 16px; border: 1px solid var(--ln2); border-radius: 50%;
+}
+.fs-prospectus .fs-choice.on { color: var(--o-dd); font-weight: 600; }
+.fs-prospectus .fs-choice.on .fs-mark { border-color: var(--o); background: var(--o); box-shadow: inset 0 0 0 3px #fff; }
+.fs-prospectus .fs-section { padding: 40px 0 6px; }
+.fs-prospectus .fs-section h2 {
+  font-family: Georgia, "Times New Roman", serif; font-weight: 400;
+  font-size: 26px; color: var(--o-dd);
+}
+.fs-prospectus .fs-foot { max-width: 660px; margin: 0 auto; width: 100%; padding: 34px 52px 74px; display: flex; gap: 20px; align-items: center; }
+.fs-prospectus .fs-submit {
+  background: var(--o); color: #fff; border-radius: 2px; padding: 15px 40px;
+  font-family: Georgia, "Times New Roman", serif; font-size: 15.5px; letter-spacing: .02em;
+}
+.fs-prospectus .fs-submit:hover { background: var(--o-dd); }
+.fs-prospectus .fs-done { padding: 80px 52px; max-width: 660px; margin: 0 auto; }
+@container fsroot (max-width: 900px) {
+  .fs-prospectus { flex-direction: column; }
+  .fs-prospectus .fs-side {
+    width: 100%; max-width: none; min-height: 0; height: auto;
+    position: static; padding: 34px 24px 38px;
+  }
+  .fs-prospectus .fs-flow, .fs-prospectus .fs-foot { padding-left: 24px; padding-right: 24px; }
+  .fs-prospectus .fs-prog { margin-top: 24px; }
+}
+
+/* ==========================================================================
+   10 — TERMINAL
+   Utilitarian and dense, for an office clerk typing forty entries an hour.
+   Monospaced throughout, tight rows, underline inputs, keyboard-first.
+   ========================================================================== */
+
+.fs-terminal {
+  --w: #14161A; --k: #E8EDF2; --k2: #A9B2BD; --k3: #7B848F; --k4: #59616B;
+  --ln: #232830; --ln2: #333A45; --o-l: #191C22; --o-ll: #1F232B;
+  color-scheme: dark;
+  background: var(--w); color: var(--k);
+  /* No webfont: a terminal wants the machine's own fixed face, and the
+     phone page must not wait on a download to render. */
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "DejaVu Sans Mono", monospace;
+  font-size: 14px; flex-direction: column;
+}
+.fs-terminal .fs-main { max-width: 860px; margin: 0 auto; width: 100%; }
+.fs-terminal .fs-head { padding: 22px 20px 14px; border-bottom: 1px solid var(--ln2); }
+.fs-terminal .fs-head h1 {
+  font-family: inherit; font-weight: 700; font-size: 19px; letter-spacing: 0;
+  text-transform: none; margin-top: 14px;
+}
+.fs-terminal .fs-head h1::before { content: "> "; color: var(--o); }
+.fs-terminal .fs-desc { color: var(--k3); font-size: 13px; margin-top: 6px; }
+.fs-terminal .fs-headnote { color: var(--k4); font-size: 12px; margin-top: 8px; }
+.fs-terminal .letterhead img { background: #fff; padding: 4px; border-radius: 3px; }
+.fs-terminal .lh-name { font-family: inherit; font-size: 14px; color: var(--k); }
+.fs-terminal .lh-tagline { display: none; }
+.fs-terminal .lh-contact { font-family: inherit; font-size: 11px; color: var(--k4); }
+
+.fs-terminal .fs-flow { padding: 6px 20px 0; display: flex; flex-direction: column; }
+.fs-terminal .fs-q {
+  display: grid; grid-template-columns: 34px 1fr; gap: 8px;
+  padding: 6px 0; align-items: baseline; border-bottom: 1px solid var(--ln);
+}
+.fs-terminal .fs-q.invalid { background: rgba(240, 101, 34, .09); }
+.fs-terminal .fs-n {
+  font-family: inherit; font-size: 12px; color: var(--o); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fs-terminal .fs-qtitle {
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--k2);
+  letter-spacing: 0; text-transform: none;
+}
+.fs-terminal .fs-help { font-size: 11.5px; margin-top: 2px; color: var(--k4); }
+.fs-terminal .fs-field { margin-top: 4px; }
+.fs-terminal .fs-input, .fs-terminal .fs-select {
+  font-family: inherit; font-size: 14px; background: transparent; color: var(--k);
+  border: 0; border-bottom: 1px solid var(--ln2); border-radius: 0; padding: 4px 2px;
+}
+.fs-terminal .fs-textarea {
+  font-family: inherit; font-size: 14px; background: #191C22; color: var(--k);
+  border: 1px solid var(--ln2); border-radius: 0; padding: 6px 8px; min-height: 56px;
+}
+.fs-terminal .fs-input:focus, .fs-terminal .fs-textarea:focus, .fs-terminal .fs-select:focus {
+  outline: none; border-color: var(--o); box-shadow: 0 1px 0 0 var(--o);
+}
+.fs-terminal .fs-choices { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+.fs-terminal .fs-choice {
+  font-family: inherit; font-size: 12.5px; padding: 3px 9px; border-radius: 0;
+  border: 1px solid var(--ln2); background: #191C22; color: var(--k2);
+}
+.fs-terminal .fs-mark { display: none; }
+.fs-terminal .fs-choice:hover { border-color: var(--o); color: var(--k); }
+.fs-terminal .fs-choice.on { background: var(--o); border-color: var(--o); color: #14161A; font-weight: 700; }
+.fs-terminal .fs-section { padding: 14px 0 4px; border-top: 1px solid var(--ln2); margin-top: 8px; }
+.fs-terminal .fs-section h2 {
+  font-family: inherit; font-size: 12px; font-weight: 700; color: var(--o);
+  text-transform: uppercase; letter-spacing: .12em;
+}
+.fs-terminal .fs-section h2::before { content: "## "; }
+.fs-terminal .fs-err { font-family: inherit; font-size: 12px; }
+.fs-terminal .fs-grid { font-size: 12.5px; }
+.fs-terminal .fs-grid th, .fs-terminal .fs-grid td { border-color: var(--ln); padding: 4px 6px; }
+.fs-terminal .fs-foot { padding: 16px 20px 46px; display: flex; align-items: center; gap: 14px; }
+.fs-terminal .fs-submit {
+  font-family: inherit; background: var(--o); color: #14161A; border-radius: 0;
+  padding: 8px 22px; font-size: 13px; font-weight: 700; letter-spacing: .04em;
+}
+.fs-terminal .fs-submit:hover { background: #fff; }
+.fs-terminal .fs-clear { font-family: inherit; font-size: 12.5px; }
+.fs-terminal .fs-done { padding: 50px 20px; }
+.fs-terminal .fs-done .dsp { font-family: inherit; font-size: 20px; }
+@container fsroot (max-width: 680px) {
+  .fs-terminal .fs-q { grid-template-columns: 26px 1fr; }
+}
+
+/* ==========================================================================
+   11 — COMMUNITY
+   Warm and conversational. Questions arrive as bubbles from the school; the
+   answer sits under each one, like a reply.
+   ========================================================================== */
+
+.fs-community {
+  --w: #FDF9F6;
+  background: var(--w); flex-direction: column;
+}
+.fs-community .fs-main { max-width: 700px; margin: 0 auto; width: 100%; }
+.fs-community .fs-head { padding: 52px 28px 10px; text-align: center; }
+.fs-community .fs-head .letterhead { align-items: center; }
+.fs-community .fs-head .lh-contact { align-items: center; }
+.fs-community .fs-head h1 { font-size: clamp(27px, 4vw, 38px); margin-top: 24px; }
+.fs-community .fs-desc { color: var(--k2); margin-top: 12px; white-space: pre-wrap; }
+.fs-community .fs-headnote { color: var(--k3); font-size: 13px; margin-top: 14px; }
+
+.fs-community .fs-flow { padding: 26px 28px 0; display: flex; flex-direction: column; gap: 20px; }
+.fs-community .fs-q {
+  background: #fff; border: 1px solid var(--ln); border-radius: 22px;
+  padding: 22px 24px; box-shadow: 0 1px 2px rgba(90, 60, 40, .05), 0 8px 22px -16px rgba(90, 60, 40, .5);
+  position: relative;
+}
+/* The tail that makes it read as something said, not something printed. */
+.fs-community .fs-q::before {
+  content: ""; position: absolute; left: 26px; bottom: -9px;
+  width: 18px; height: 18px; background: #fff;
+  border-right: 1px solid var(--ln); border-bottom: 1px solid var(--ln);
+  transform: rotate(45deg) skew(-6deg, -6deg); border-bottom-right-radius: 4px;
+}
+.fs-community .fs-q.invalid { border-color: var(--o); background: var(--o-l); }
+.fs-community .fs-q.invalid::before { background: var(--o-l); border-color: var(--o); }
+.fs-community .fs-n {
+  display: inline-block; font-family: var(--display); font-stretch: 112%;
+  font-weight: 700; font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--o-d); background: var(--o-l); border-radius: 99px;
+  padding: 3px 11px; margin-bottom: 10px;
+}
+.fs-community .fs-qtitle { font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 18px; }
+.fs-community .fs-field { margin-top: 14px; }
+.fs-community .fs-input, .fs-community .fs-textarea, .fs-community .fs-select {
+  border: 1.5px solid var(--ln); border-radius: 16px; padding: 13px 16px;
+  font-size: 16px; background: #FDFBFA;
+}
+.fs-community .fs-input:focus, .fs-community .fs-textarea:focus, .fs-community .fs-select:focus {
+  outline: none; border-color: var(--o); background: #fff; box-shadow: 0 0 0 4px var(--o-ll);
+}
+.fs-community .fs-choices { flex-direction: row; flex-wrap: wrap; gap: 9px; }
+.fs-community .fs-choice {
+  border: 1.5px solid var(--ln); border-radius: 99px; padding: 10px 18px;
+  background: #FDFBFA; font-size: 14.5px;
+  /* Pills, so they sit on one line where they fit — the base sheet stretches
+     every choice to full width. */
+  width: auto; flex: 0 1 auto;
+}
+.fs-community .fs-mark { display: none; }
+.fs-community .fs-choice:hover { border-color: var(--o); background: var(--o-l); }
+.fs-community .fs-choice.on { background: var(--o); border-color: var(--o); color: #fff; font-weight: 600; }
+.fs-community .fs-section { padding: 16px 0 0; text-align: center; }
+.fs-community .fs-section h2 {
+  display: inline-block; font-size: 15px; color: var(--o-dd);
+  background: var(--o-ll); border-radius: 99px; padding: 7px 20px;
+}
+.fs-community .fs-foot { padding: 30px 28px 70px; display: flex; align-items: center; gap: 18px; justify-content: center; }
+.fs-community .fs-submit {
+  background: var(--o); color: #fff; border-radius: 99px; padding: 16px 42px; font-size: 15.5px;
+  box-shadow: 0 10px 24px -12px var(--o-d);
+}
+.fs-community .fs-submit:hover { background: var(--o-dd); }
+.fs-community .fs-done {
+  background: #fff; border: 1px solid var(--ln); border-radius: 26px;
+  margin: 26px 28px; padding: 60px 30px;
+}
+@container fsroot (max-width: 620px) {
+  .fs-community .fs-flow, .fs-community .fs-foot { padding-left: 18px; padding-right: 18px; }
+  .fs-community .fs-q { padding: 18px 20px; border-radius: 20px; }
+}
+
+/* ==========================================================================
+   QUIZ RESULT
+   ========================================================================== */
+
+.fs-score {
+  margin: 26px auto 0; max-width: 520px; width: 100%; text-align: left;
+  border: 1px solid var(--ln); border-radius: 16px; overflow: hidden; background: var(--w);
+}
+.fs-scorehead {
+  display: flex; align-items: baseline; gap: 12px; padding: 18px 22px;
+  background: var(--o-l); border-bottom: 1px solid var(--ln);
+}
+.fs-scorehead .lbl { color: var(--o-dd); }
+.fs-scorehead b {
+  font-family: var(--display); font-stretch: 118%; font-weight: 800;
+  font-size: 30px; color: var(--o-dd); font-variant-numeric: tabular-nums;
+  margin-left: auto; line-height: 1;
+}
+.fs-scorehead b s { text-decoration: none; font-size: 17px; color: var(--k3); font-weight: 600; }
+.fs-scorehead .pc { font-size: 13px; color: var(--k3); font-variant-numeric: tabular-nums; }
+.fs-marks { list-style: none; margin: 0; padding: 0; }
+.fs-marks li {
+  display: grid; grid-template-columns: 22px 1fr auto; gap: 11px;
+  padding: 12px 22px; border-bottom: 1px solid var(--ln); align-items: start;
+  font-size: 14px;
+}
+.fs-marks li:last-child { border-bottom: 0; }
+.fs-marks .tick {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  color: #fff; margin-top: 1px;
+}
+.fs-marks li.ok .tick { background: #2E7D53; }
+.fs-marks li.no .tick { background: var(--bad); }
+.fs-marks .body b { display: block; font-weight: 600; }
+.fs-marks .body s {
+  display: block; text-decoration: none; font-size: 12.5px; color: var(--k3); margin-top: 3px;
+}
+.fs-marks .pts {
+  font-variant-numeric: tabular-nums; font-size: 13px; color: var(--k3); white-space: nowrap;
 }

@@ -75,6 +75,16 @@ export function newQuestion(type: QuestionType = "short_text"): Question {
     mask: "",
     pattern: "",
     patternMessage: "",
+    minNumber: "",
+    maxNumber: "",
+    minLength: "",
+    maxLength: "",
+    countRule: "",
+    countValue: "",
+    points: "",
+    answerKey: [],
+    feedbackCorrect: "",
+    feedbackWrong: "",
   };
 }
 
@@ -118,6 +128,9 @@ export function newForm(
       acceptingResponses: true,
       colorway: "brand",
       kiosk: false,
+      shuffleQuestions: false,
+      quiz: false,
+      quizShowScore: true,
       receipt: {
         enabled: false,
         title: "",
@@ -165,6 +178,9 @@ export function normalizeForm(raw: import("../types").FormDef): import("../types
     settings: {
       ...base.settings,
       ...s,
+      shuffleQuestions: false,
+      quiz: false,
+      quizShowScore: true,
       receipt: { ...base.settings.receipt, ...(s.receipt ?? {}) },
     },
   };

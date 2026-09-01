@@ -1,4 +1,5 @@
 import { compilePattern, maskComplete, maskExample } from "./mask";
+import { markQuiz } from "./quiz";
 import type { Answers, AnswerValue, FormDef, Question } from "../types";
 
 /**
@@ -63,6 +64,14 @@ export function buildRow(
     if (hidden.has(q.id)) values.push(...cols.map(() => ""));
     else values.push(...valuesFor(q, answers));
   }
+
+  // A quiz carries its marks in the last two columns, so a teacher can sort by
+  // score without hunting for them among thirty answers.
+  if (form.settings.quiz) {
+    const { score, total } = markQuiz(form, answers, hidden);
+    headers.push("Score", "Out of");
+    values.push(String(score), String(total));
+  }
   return { headers, values };
 }
 
@@ -77,6 +86,7 @@ export function allHeaders(form: FormDef): string[] {
     if (isDisplayBlock(q.type)) continue;
     h.push(...headersFor(q));
   }
+  if (form.settings.quiz) h.push("Score", "Out of");
   return h;
 }
 
@@ -106,6 +116,20 @@ export function validate(q: Question, v: AnswerValue): string {
   }
   if (!isAnswered(q, v)) return "";
 
+  // Checkbox counts are about the collection, not the text, so they come first.
+  if (q.type === "checkboxes" && q.countRule) {
+    const n = ((v as string[]) || []).length;
+    const want = Number(q.countValue);
+    if (Number.isFinite(want) && want > 0) {
+      if (q.countRule === "at_least" && n < want)
+        return `Choose at least ${want} option${want === 1 ? "" : "s"}.`;
+      if (q.countRule === "at_most" && n > want)
+        return `Choose no more than ${want} option${want === 1 ? "" : "s"}.`;
+      if (q.countRule === "exactly" && n !== want)
+        return `Choose exactly ${want} option${want === 1 ? "" : "s"}.`;
+    }
+  }
+
   const s = String(v);
   if (q.type === "email" && !EMAIL.test(s)) return "Enter a valid email address.";
   if (q.type === "phone" && !q.mask && !PHONE.test(s)) return "Enter a valid phone number.";
@@ -116,6 +140,23 @@ export function validate(q: Question, v: AnswerValue): string {
   // half-typed number, not a wrong one, so say so plainly.
   if (q.mask && !maskComplete(s, q.mask)) {
     return `Finish this — it should look like ${maskExample(q.mask)}.`;
+  }
+
+  if (q.type === "number") {
+    const n = Number(s);
+    const lo = q.minNumber === "" ? null : Number(q.minNumber);
+    const hi = q.maxNumber === "" ? null : Number(q.maxNumber);
+    if (lo !== null && Number.isFinite(lo) && n < lo) return `Enter ${lo} or more.`;
+    if (hi !== null && Number.isFinite(hi) && n > hi) return `Enter ${hi} or less.`;
+  }
+
+  if (q.type === "short_text" || q.type === "paragraph") {
+    const lo = q.minLength === "" ? null : Number(q.minLength);
+    const hi = q.maxLength === "" ? null : Number(q.maxLength);
+    if (lo !== null && Number.isFinite(lo) && s.length < lo)
+      return `Write at least ${lo} characters — that is ${s.length} so far.`;
+    if (hi !== null && Number.isFinite(hi) && s.length > hi)
+      return `Keep it to ${hi} characters — that is ${s.length}.`;
   }
 
   const re = compilePattern(q.pattern);

@@ -220,6 +220,7 @@ export default function Builder({ id }: { id: string }) {
           {tab === "settings" && (
             <>
               <FormSettingsPanel />
+              <QuizPanel />
               <ReceiptPanel />
               <DataFolderPanel />
               <WebhookPanel />
@@ -373,6 +374,55 @@ const STYLES: { id: FormStyle; name: string; note: string; thumb: JSX.Element }[
       </div>
     ),
   },
+  {
+    id: "arena",
+    name: "Arena",
+    note: "Loud and athletic. Near-black, sharp corners, floodlit orange.",
+    thumb: (
+      <div className="th-arn">
+        <div className="hz" />
+        <div className="rw"><b>01</b><s /></div>
+        <div className="rw"><b>02</b><s style={{ width: "50%" }} /></div>
+        <div className="btn" />
+      </div>
+    ),
+  },
+  {
+    id: "prospectus",
+    name: "Prospectus",
+    note: "Prestigious. A sticky programme panel and serif headings.",
+    thumb: (
+      <div className="th-pro">
+        <div className="l"><i /><em /></div>
+        <div className="r"><s /><u /><s style={{ width: "62%" }} /><u /></div>
+      </div>
+    ),
+  },
+  {
+    id: "terminal",
+    name: "Terminal",
+    note: "Dense and monospaced. For an office clerk typing all morning.",
+    thumb: (
+      <div className="th-trm">
+        <em>&gt; form</em>
+        <div className="ln"><b>01</b><s /></div>
+        <div className="ln"><b>02</b><s style={{ width: "44%" }} /></div>
+        <div className="ln"><b>03</b><s style={{ width: "62%" }} /></div>
+        <div className="ln"><b>04</b><s style={{ width: "38%" }} /></div>
+      </div>
+    ),
+  },
+  {
+    id: "community",
+    name: "Community",
+    note: "Warm and conversational. Questions arrive as soft bubbles.",
+    thumb: (
+      <div className="th-cmy">
+        <div className="bub"><i /><s /></div>
+        <div className="bub"><i /><s style={{ width: "56%" }} /></div>
+      </div>
+    ),
+  },
 ];
 
 function StylePicker() {
@@ -450,6 +500,15 @@ function FormSettingsPanel() {
         </Row>
         <Row title="Record a timestamp" note="Adds a “Timestamp” column as the first column in the sheet.">
           <Toggle checked={s.collectTimestamp} onChange={(v) => patchSettings({ collectTimestamp: v })} />
+        </Row>
+        <Row
+          title="Shuffle question order"
+          note="Mixes the questions within each section, never across one — a section heading is a promise about what follows it. Useful for a test."
+        >
+          <Toggle
+            checked={!!s.shuffleQuestions}
+            onChange={(v) => patchSettings({ shuffleQuestions: v })}
+          />
         </Row>
         <Row title="Show progress" note="The bar on the Panel wall and along the top of Focus.">
           <Toggle checked={s.showProgress} onChange={(v) => patchSettings({ showProgress: v })} />
@@ -887,6 +946,67 @@ function WebhookPanel() {
         the counter and never fails their submission — the response is safely on
         disk either way.
       </p>
+    </div>
+  );
+}
+
+
+/* ==========================================================================
+   QUIZ
+   ========================================================================== */
+
+function QuizPanel() {
+  const { form, patchSettings } = useApp();
+  if (!form) return null;
+  const marked = form.questions.filter((q) => q.answerKey?.length);
+  const total = marked.reduce((n, q) => n + (Number(q.points) || 0), 0);
+
+  return (
+    <div className="card pad">
+      <Row
+        title="Mark this form as a quiz"
+        note="Set a correct answer and marks on each question. Every response is scored automatically and the score lands in the workbook."
+      >
+        <Toggle
+          checked={!!form.settings.quiz}
+          onChange={(v) => patchSettings({ quiz: v })}
+          label=""
+        />
+      </Row>
+
+      {form.settings.quiz && (
+        <div className="stack" style={{ marginTop: 18, gap: 16 }}>
+          <Row
+            title="Show the score when they submit"
+            note="Turn this off for an entrance test you want to mark before anyone sees a result."
+          >
+            <Toggle
+              checked={form.settings.quizShowScore !== false}
+              onChange={(v) => patchSettings({ quizShowScore: v })}
+              label=""
+            />
+          </Row>
+
+          <div className="card pad flat" style={{ borderLeft: "3px solid var(--o-500)" }}>
+            {marked.length === 0 ? (
+              <p className="hint" style={{ margin: 0 }}>
+                No answer keys set yet. Open a question and use its{" "}
+                <b>Answer key</b> button.
+              </p>
+            ) : (
+              <p className="hint" style={{ margin: 0 }}>
+                <b>
+                  {marked.length} question{marked.length === 1 ? "" : "s"} marked, {total}{" "}
+                  mark{total === 1 ? "" : "s"} in total.
+                </b>{" "}
+                Two extra columns — <b>Score</b> and <b>Out of</b> — are added to the
+                Excel file. A question somebody never saw, because a branch skipped
+                it, is left out of their total rather than counted wrong.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

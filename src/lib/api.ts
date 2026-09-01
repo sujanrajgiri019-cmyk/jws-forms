@@ -241,8 +241,21 @@ function updateErrorText(e: unknown): string {
   const raw = String((e as { message?: string })?.message ?? e);
   const low = raw.toLowerCase();
 
-  if (low.includes("404") || low.includes("not found")) {
-    return "No release has been published yet. Once a version is tagged on GitHub and the build finishes, updates will appear here.";
+  // The updater fetches latest.json anonymously, so a private repository looks
+  // exactly like a missing one. Both land here, and both are fixed on GitHub
+  // rather than in the app, so say what to go and do.
+  if (
+    low.includes("404") ||
+    low.includes("not found") ||
+    low.includes("valid release json") ||
+    low.includes("release json")
+  ) {
+    return (
+      "GitHub did not return a release file. Two things cause this: " +
+      "no version has been published yet, or the repository is private — the updater " +
+      "downloads without signing in, so a private repo looks empty to it. " +
+      "Check that the Releases page lists a version and that the repository is public."
+    );
   }
   if (low.includes("signature") || low.includes("minisign") || low.includes("verify")) {
     return "That update was not signed with this school's key, so it was refused. Rebuild the release with the JWS signing key.";

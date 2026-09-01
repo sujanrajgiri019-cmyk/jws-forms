@@ -10,10 +10,13 @@ import {
   OPERATOR_LABEL,
   candidateSources,
   describeConditions,
+  laterSections,
 } from "../lib/logic";
+import { MARKABLE } from "../lib/quiz";
 import { MASK_PRESETS, maskExample, presetFor } from "../lib/mask";
 import { useApp } from "../lib/store";
 import { OptionList } from "./OptionList";
+import { SUBMIT_SECTION } from "../types";
 import type { ConditionRule, Question, QuestionConditions, QuestionType } from "../types";
 
 export function QuestionCard({ q, index }: { q: Question; index: number }) {
@@ -21,7 +24,8 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
     useApp();
   const isSel = selected === q.id;
   const meta = TYPE_MAP[q.type];
-  const [panel, setPanel] = useState<"none" | "logic" | "checks">("none");
+  const [panel, setPanel] = useState<"none" | "logic" | "checks" | "route" | "key">("none");
+  const isQuiz = !!form?.settings.quiz;
   const ruleCount = q.conditions?.rules.length ?? 0;
   const hasChecks = !!(q.mask || q.pattern);
 
@@ -70,6 +74,7 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
             onChange={(e) => patch({ description: e.target.value })}
             style={{ marginTop: 6 }}
           />
+          {isSel && <SectionRouting q={q} />}
         </div>
       ) : (
         <>
@@ -128,8 +133,13 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
           {isSel && panel === "checks" && (
             <div className="logicbox">
               <ValidationPanel q={q} patch={patch} />
+              <div style={{ marginTop: 16 }}>
+                <LimitsPanel q={q} patch={patch} />
+              </div>
             </div>
           )}
+          {isSel && panel === "route" && <OptionRouting q={q} />}
+          {isSel && panel === "key" && <AnswerKeyPanel q={q} patch={patch} />}
         </>
       )}
 
@@ -162,7 +172,7 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
               >
                 Logic{ruleCount ? ` (${ruleCount})` : ""}
               </Button>
-              {TYPE_MAP[q.type].hasPlaceholder && (
+              {(TYPE_MAP[q.type].hasPlaceholder || q.type === "checkboxes") && (
                 <Button
                   size="sm"
                   icon="check"
@@ -170,6 +180,26 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
                   onClick={() => setPanel(panel === "checks" ? "none" : "checks")}
                 >
                   Format{hasChecks ? " ·" : ""}
+                </Button>
+              )}
+              {q.type === "multiple_choice" && (
+                <Button
+                  size="sm"
+                  icon="forward"
+                  variant={panel === "route" ? "primary" : undefined}
+                  onClick={() => setPanel(panel === "route" ? "none" : "route")}
+                >
+                  Go to section
+                </Button>
+              )}
+              {isQuiz && (
+                <Button
+                  size="sm"
+                  icon="star"
+                  variant={panel === "key" ? "primary" : undefined}
+                  onClick={() => setPanel(panel === "key" ? "none" : "key")}
+                >
+                  Answer key{q.answerKey.length ? ` · ${q.points || 0}` : ""}
                 </Button>
               )}
               <Menu
@@ -1007,6 +1037,313 @@ export function ValidationPanel({
           rather than blocking anyone.
         </p>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- section routing */
+
+/**
+ * Where a section sends people next.
+ *
+ * Only *later* sections are offered. Google Forms allows a backwards jump and
+ * then has to detect the loop it just let you build; refusing to offer one is
+ * simpler to understand and impossible to get wrong. The runtime still guards
+ * against loops in old forms.
+ */
+export function SectionRouting({ q }: { q: Question }) {
+  const { form, patchQuestion } = useApp();
+  if (!form) return null;
+  const targets = laterSections(form, q.id);
+
+  return (
+    <div className="logicbox">
+      <label className="label">After this section</label>
+      <select
+        className="select"
+        style={{ maxWidth: 380 }}
+        value={q.nextSection ?? ""}
+        onChange={(e) => patchQuestion(q.id, { nextSection: e.target.value })}
+      >
+        <option value="">Continue to the next section</option>
+        {targets.map((s) => (
+          <option key={s.id} value={s.id}>
+            Go to “{s.title}”
+          </option>
+        ))}
+        <option value={SUBMIT_SECTION}>Submit the form</option>
+      </select>
+      <p className="hint" style={{ marginTop: 10 }}>
+        A multiple-choice answer inside this section that routes somewhere else
+        wins over this setting. Sections nobody reaches are written to Excel as
+        blank cells, so the sheet keeps one shape.
+      </p>
+    </div>
+  );
+}
+
+/** Per-option routing on a multiple-choice question. */
+export function OptionRouting({ q }: { q: Question }) {
+  const { form, patchQuestion } = useApp();
+  if (!form) return null;
+  const targets = laterSections(form, q.id);
+  const on = q.options.some((o) => o.goTo);
+
+  if (!targets.length) {
+    return (
+      <div className="logicbox">
+        <p className="hint" style={{ margin: 0 }}>
+          Routing needs a section below this question to send people to. Add a
+          section heading first.
+        </p>
+      </div>
+    );
+  }
+
+  function setGoTo(optId: string, to: string) {
+    patchQuestion(q.id, {
+      options: q.options.map((o) => (o.id === optId ? { ...o, goTo: to } : o)),
+    });
+  }
+
+  return (
+    <div className="logicbox">
+      <div className="between" style={{ marginBottom: on ? 14 : 0 }}>
+        <div>
+          <b style={{ fontSize: 14 }}>Send people to a section based on their answer</b>
+          <p className="hint" style={{ marginTop: 2 }}>
+            The Google Forms behaviour: each option can jump somewhere different.
+          </p>
+        </div>
+        <Toggle
+          checked={on}
+          onChange={(v) =>
+            patchQuestion(q.id, {
+              options: q.options.map((o) => ({ ...o, goTo: v ? o.goTo ?? "" : undefined })),
+            })
+          }
+          label=""
+        />
+      </div>
+
+      {on && (
+        <div className="stack" style={{ gap: 8 }}>
+          {q.options.map((o) => (
+            <div className="routerow" key={o.id}>
+              <span className="truncate">{o.label || "Empty option"}</span>
+              <Icon name="forward" size={15} />
+              <select
+                className="select"
+                value={o.goTo ?? ""}
+                onChange={(e) => setGoTo(o.id, e.target.value)}
+              >
+                <option value="">Continue to the next section</option>
+                {targets.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    Go to “{s.title}”
+                  </option>
+                ))}
+                <option value={SUBMIT_SECTION}>Submit the form</option>
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------- limits and answer key */
+
+export function LimitsPanel({
+  q,
+  patch,
+}: {
+  q: Question;
+  patch: (p: Partial<Question>) => void;
+}) {
+  const isNum = q.type === "number";
+  const isText = q.type === "short_text" || q.type === "paragraph";
+  const isChecks = q.type === "checkboxes";
+
+  if (!isNum && !isText && !isChecks) return null;
+
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      {isNum && (
+        <div>
+          <label className="label">Accepted range</label>
+          <div className="wrap-row">
+            <input
+              className="input" style={{ width: 120 }} type="number" placeholder="No minimum"
+              value={q.minNumber} onChange={(e) => patch({ minNumber: e.target.value })}
+            />
+            <span style={{ color: "var(--ink-3)" }}>to</span>
+            <input
+              className="input" style={{ width: 120 }} type="number" placeholder="No maximum"
+              value={q.maxNumber} onChange={(e) => patch({ maxNumber: e.target.value })}
+            />
+          </div>
+        </div>
+      )}
+
+      {isText && (
+        <div>
+          <label className="label">Length</label>
+          <div className="wrap-row">
+            <input
+              className="input" style={{ width: 130 }} type="number" min={0} placeholder="No minimum"
+              value={q.minLength} onChange={(e) => patch({ minLength: e.target.value })}
+            />
+            <span style={{ color: "var(--ink-3)" }}>to</span>
+            <input
+              className="input" style={{ width: 130 }} type="number" min={0} placeholder="No maximum"
+              value={q.maxLength} onChange={(e) => patch({ maxLength: e.target.value })}
+            />
+            <span style={{ color: "var(--ink-3)", fontSize: 13 }}>characters</span>
+          </div>
+        </div>
+      )}
+
+      {isChecks && (
+        <div>
+          <label className="label">How many boxes</label>
+          <div className="wrap-row">
+            <select
+              className="select" style={{ width: 150 }}
+              value={q.countRule}
+              onChange={(e) => patch({ countRule: e.target.value as Question["countRule"] })}
+            >
+              <option value="">No limit</option>
+              <option value="at_least">At least</option>
+              <option value="at_most">At most</option>
+              <option value="exactly">Exactly</option>
+            </select>
+            {q.countRule && (
+              <input
+                className="input" style={{ width: 90 }} type="number" min={1}
+                value={q.countValue} onChange={(e) => patch({ countValue: e.target.value })}
+              />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The answer key, shown only when the form is a quiz. */
+export function AnswerKeyPanel({
+  q,
+  patch,
+}: {
+  q: Question;
+  patch: (p: Partial<Question>) => void;
+}) {
+  const choiceBased =
+    q.type === "multiple_choice" || q.type === "checkboxes" || q.type === "dropdown";
+
+  if (!MARKABLE.includes(q.type)) {
+    return (
+      <div className="logicbox">
+        <p className="hint" style={{ margin: 0 }}>
+          This kind of question isn't marked automatically. A paragraph answer is
+          a judgement, not a string comparison — read those in the Excel file and
+          mark them yourself.
+        </p>
+      </div>
+    );
+  }
+
+  function toggleKey(label: string) {
+    const has = q.answerKey.includes(label);
+    patch({
+      answerKey: has
+        ? q.answerKey.filter((k) => k !== label)
+        : q.type === "checkboxes"
+        ? [...q.answerKey, label]
+        : [label],
+    });
+  }
+
+  return (
+    <div className="logicbox">
+      <div className="wrap-row" style={{ marginBottom: 14 }}>
+        <label className="label" style={{ margin: 0 }}>Marks</label>
+        <input
+          className="input"
+          style={{ width: 92 }}
+          type="number"
+          min={0}
+          placeholder="0"
+          value={q.points}
+          onChange={(e) => patch({ points: e.target.value })}
+        />
+      </div>
+
+      <label className="label">
+        {choiceBased ? "Correct answer" : "Accepted answers"}
+      </label>
+
+      {choiceBased ? (
+        <div className="slipfields">
+          {q.options.map((o) => (
+            <label
+              key={o.id}
+              className={`slipfield${q.answerKey.includes(o.label) ? " on" : ""}`}
+            >
+              <input
+                type={q.type === "checkboxes" ? "checkbox" : "radio"}
+                name={`key-${q.id}`}
+                checked={q.answerKey.includes(o.label)}
+                onChange={() => toggleKey(o.label)}
+              />
+              <span className="truncate">{o.label || "Empty option"}</span>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <>
+          <input
+            className="input"
+            placeholder="Separate alternatives with a comma — e.g. Kathmandu, KTM"
+            value={q.answerKey.join(", ")}
+            onChange={(e) =>
+              patch({
+                answerKey: e.target.value
+                  .split(",")
+                  .map((x) => x.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+          <p className="hint" style={{ marginTop: 6 }}>
+            Matching ignores capitals and extra spaces. Any one of these counts.
+          </p>
+        </>
+      )}
+
+      <div className="stack" style={{ marginTop: 14, gap: 8 }}>
+        <input
+          className="input"
+          placeholder="What to say when they got it right (optional)"
+          value={q.feedbackCorrect}
+          onChange={(e) => patch({ feedbackCorrect: e.target.value })}
+        />
+        <input
+          className="input"
+          placeholder="What to say when they got it wrong (optional)"
+          value={q.feedbackWrong}
+          onChange={(e) => patch({ feedbackWrong: e.target.value })}
+        />
+      </div>
+
+      {q.type === "checkboxes" && (
+        <p className="hint" style={{ marginTop: 12 }}>
+          Every right box and no wrong ones. A partly-ticked answer is marked
+          wrong rather than given half marks.
+        </p>
+      )}
     </div>
   );
 }

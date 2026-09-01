@@ -8,6 +8,10 @@ pub struct Choice {
     pub id: String,
     #[serde(default)]
     pub label: String,
+    /// Section routing on a multiple-choice option. Rust never follows it — the
+    /// two front ends do — but it must survive a load/save round trip.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub go_to: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -74,6 +78,28 @@ pub struct Question {
     pub pattern_message: String,
     #[serde(default)]
     pub conditions: Option<QuestionConditions>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_section: Option<String>,
+    #[serde(default)]
+    pub min_number: String,
+    #[serde(default)]
+    pub max_number: String,
+    #[serde(default)]
+    pub min_length: String,
+    #[serde(default)]
+    pub max_length: String,
+    #[serde(default)]
+    pub count_rule: String,
+    #[serde(default)]
+    pub count_value: String,
+    #[serde(default)]
+    pub points: String,
+    #[serde(default)]
+    pub answer_key: Vec<String>,
+    #[serde(default)]
+    pub feedback_correct: String,
+    #[serde(default)]
+    pub feedback_wrong: String,
 }
 
 /// Conditional visibility. Rust never evaluates these — the two front ends do,
@@ -149,6 +175,12 @@ pub struct FormSettings {
     pub kiosk: bool,
     #[serde(default)]
     pub receipt: ReceiptSettings,
+    #[serde(default)]
+    pub shuffle_questions: bool,
+    #[serde(default)]
+    pub quiz: bool,
+    #[serde(default = "yes")]
+    pub quiz_show_score: bool,
     /// Optional endpoint POSTed after the response is safely on disk.
     #[serde(default)]
     pub webhook_url: String,
@@ -189,6 +221,9 @@ impl Default for FormSettings {
             colorway: default_colorway(),
             kiosk: false,
             receipt: ReceiptSettings::default(),
+            shuffle_questions: false,
+            quiz: false,
+            quiz_show_score: true,
             webhook_url: String::new(),
         }
     }

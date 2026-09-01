@@ -15,6 +15,10 @@ const STYLE_LABEL: Record<FormStyle, string> = {
   cards: "Cards",
   cover: "Cover",
   split: "Split screen",
+  arena: "Arena",
+  prospectus: "Prospectus",
+  terminal: "Terminal",
+  community: "Community",
 };
 
 export default function Home() {

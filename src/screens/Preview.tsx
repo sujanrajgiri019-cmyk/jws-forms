@@ -13,6 +13,10 @@ const STYLE_NAMES: Record<FormStyle, string> = {
   cards: "Cards",
   cover: "Cover",
   split: "Split screen",
+  arena: "Arena",
+  prospectus: "Prospectus",
+  terminal: "Terminal",
+  community: "Community",
 };
 
 /**

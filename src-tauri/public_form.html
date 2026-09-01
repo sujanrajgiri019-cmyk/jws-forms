@@ -57,6 +57,8 @@ var LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 var ICON = {
   star: '<svg viewBox="0 0 24 24" fill="currentColor" width="30" height="30"><path d="M12 3.2l2.7 5.5 6 .9-4.35 4.24L17.4 20 12 17.15 6.6 20l1.05-6.16L3.3 9.6l6-.9z"/></svg>',
   tick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="60" height="60"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM8.2 12.3l2.6 2.6 5-5.4"/></svg>',
+  markOk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+  markNo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M3 8.8A1.8 1.8 0 0 1 4.8 7h2.5l1.4-2.2h6.6L16.7 7h2.5A1.8 1.8 0 0 1 21 8.8v9.4A1.8 1.8 0 0 1 19.2 20H4.8A1.8 1.8 0 0 1 3 18.2Z"/><circle cx="12" cy="13" r="3.6"/></svg>',
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M12 8.5v5M12 16.6h.01M10.3 4.2 2.7 17.4A1.7 1.7 0 0 0 4.2 20h15.6a1.7 1.7 0 0 0 1.5-2.6L13.7 4.2a1.7 1.7 0 0 0-3 0Z"/></svg>'
 };
@@ -138,6 +140,11 @@ function rootClass() {
   }
   return "fs fs-" + STYLE + (cw === "brand" ? "" : " cw-" + cw) + (st.kiosk ? " fs-kiosk" : "");
 }
+/* Styles that put the branding in a panel beside the form rather than above
+   it. Mirrors HAS_SIDE in src/fill/FormRenderer.tsx. */
+var SIDE_STYLES = ["panel", "split", "prospectus"];
+function hasSide() { return SIDE_STYLES.indexOf(STYLE) >= 0; }
+
 function questions() { return FORM.questions || []; }
 function isDisplayBlock(t) { return t === "section" || t === "image"; }
 
@@ -192,9 +199,63 @@ function evaluateRule(r) {
     default: return true;
   }
 }
+/* ------------------------------------------------------- section routing
+   Mirrors sectionsOf / reachedSections in src/lib/logic.ts. */
+
+var SUBMIT_SECTION = "__submit__";
+
+function sectionsOf() {
+  var out = [{ id: "", title: "", blocks: [] }];
+  questions().forEach(function (q) {
+    if (q.type === "section") out.push({ id: q.id, title: q.title || "Section", blocks: [q] });
+    else out[out.length - 1].blocks.push(q);
+  });
+  return out[0].blocks.length ? out : out.slice(1);
+}
+
+function reachedSections() {
+  var secs = sectionsOf();
+  var reached = {};
+  if (!secs.length) return reached;
+
+  var indexOf = {};
+  secs.forEach(function (s, i) { indexOf[s.id] = i; });
+
+  var i = 0;
+  while (i >= 0 && i < secs.length) {
+    var sec = secs[i];
+    if (reached[sec.id]) break;          // loop guard
+    reached[sec.id] = true;
+
+    var target;
+    for (var b = 0; b < sec.blocks.length; b++) {
+      var q = sec.blocks[b];
+      if (q.type !== "multiple_choice") continue;
+      var picked = answers[q.id];
+      if (typeof picked !== "string" || !picked) continue;
+      var opt = (q.options || []).filter(function (o) { return o.label === picked; })[0];
+      if (opt && opt.goTo) { target = opt.goTo; break; }
+    }
+    if (target === undefined) target = (sec.blocks[0] && sec.blocks[0].nextSection) || "";
+
+    if (target === SUBMIT_SECTION) break;
+    if (!target) { i += 1; continue; }
+    var next = indexOf[target];
+    i = next === undefined ? i + 1 : next;
+  }
+  return reached;
+}
+
 function hiddenSet() {
   var hidden = {};
+  // Sections nobody routed to behave exactly like hidden questions.
+  var reached = reachedSections();
+  sectionsOf().forEach(function (sec) {
+    if (reached[sec.id]) return;
+    sec.blocks.forEach(function (b) { hidden[b.id] = true; });
+  });
   questions().forEach(function (q) {
+    if (hidden[q.id]) return;
     var c = q.conditions;
     if (!c || !c.rules || !c.rules.length) return;
     var results = c.rules.map(function (r) { return hidden[r.fieldId] ? false : evaluateRule(r); });
@@ -208,7 +269,20 @@ function hiddenSet() {
 }
 function visibleBlocks() {
   var hidden = hiddenSet();
-  return questions().filter(function (q) { return !hidden[q.id]; });
+  var onScreen = questions().filter(function (q) { return !hidden[q.id]; });
+  if (!settings().shuffleQuestions) return onScreen;
+
+  // Shuffled inside each section, never across one, seeded so the order holds
+  // still while somebody is answering.
+  var out = [];
+  sectionsOf().forEach(function (sec) {
+    var here = sec.blocks.filter(function (b) { return !hidden[b.id]; });
+    out = out.concat(
+      here.filter(function (b) { return b.type === "section"; }),
+      shuffled(here.filter(function (b) { return b.type !== "section"; }), true, FORM.id + sec.id)
+    );
+  });
+  return out;
 }
 
 /* -------------------------------------------------------------- masking
@@ -286,12 +360,34 @@ function validate(q) {
       ? "Please answer every row." : "This question is required.";
   }
   if (!isAnswered(q)) return "";
+  if (q.type === "checkboxes" && q.countRule) {
+    var n = (answers[q.id] || []).length, want = Number(q.countValue);
+    if (isFinite(want) && want > 0) {
+      var plural = want === 1 ? "" : "s";
+      if (q.countRule === "at_least" && n < want) return "Choose at least " + want + " option" + plural + ".";
+      if (q.countRule === "at_most" && n > want) return "Choose no more than " + want + " option" + plural + ".";
+      if (q.countRule === "exactly" && n !== want) return "Choose exactly " + want + " option" + plural + ".";
+    }
+  }
   var s = String(answers[q.id]);
   if (q.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "Enter a valid email address.";
   if (q.type === "phone" && !q.mask && !/^[0-9+\-\s()]{6,}$/.test(s)) return "Enter a valid phone number.";
   if (q.type === "number" && !q.mask && isNaN(Number(s))) return "Enter a number.";
   if (q.mask && !maskComplete(s, q.mask))
     return "Finish this \u2014 it should look like " + maskExample(q.mask) + ".";
+  if (q.type === "number") {
+    var num = Number(s);
+    if (q.minNumber !== "" && q.minNumber !== undefined && num < Number(q.minNumber))
+      return "Enter " + q.minNumber + " or more.";
+    if (q.maxNumber !== "" && q.maxNumber !== undefined && num > Number(q.maxNumber))
+      return "Enter " + q.maxNumber + " or less.";
+  }
+  if (q.type === "short_text" || q.type === "paragraph") {
+    if (q.minLength !== "" && q.minLength !== undefined && s.length < Number(q.minLength))
+      return "Write at least " + q.minLength + " characters \u2014 that is " + s.length + " so far.";
+    if (q.maxLength !== "" && q.maxLength !== undefined && s.length > Number(q.maxLength))
+      return "Keep it to " + q.maxLength + " characters \u2014 that is " + s.length + ".";
+  }
   if (q.pattern) {
     var re = null;
     try { re = new RegExp(q.pattern); } catch (e) { re = null; }
@@ -325,6 +421,9 @@ function setAnswer(id, v) {
    rule has to re-lay-out the form; typing into one that doesn't must not, or
    every keystroke would steal the caret. */
 function drivesLogic(id) {
+  var q0 = questions().filter(function (x) { return x.id === id; })[0];
+  // A routed multiple choice reshapes the whole form, not just one block.
+  if (q0 && (q0.options || []).some(function (o) { return o.goTo; })) return true;
   return questions().some(function (q) {
     return (q.conditions && q.conditions.rules || []).some(function (r) { return r.fieldId === id; });
   });
@@ -633,6 +732,85 @@ function photoField(q, str) {
   return box;
 }
 
+/* ------------------------------------------------------------ quiz marking
+   Mirrors src/lib/quiz.ts. Only questions the respondent actually saw count. */
+
+var MARKABLE = ["short_text","number","email","phone","multiple_choice","checkboxes",
+                "dropdown","date","time","linear_scale","rating"];
+
+function normAnswer(x) { return String(x === null || x === undefined ? "" : x).trim().toLowerCase().replace(/\s+/g, " "); }
+
+function isMarkable(q) { return MARKABLE.indexOf(q.type) >= 0 && (q.answerKey || []).length > 0; }
+
+function questionPoints(q) { var n = Number(q.points); return isFinite(n) && n > 0 ? n : 0; }
+
+function isCorrect(q) {
+  if (!isMarkable(q)) return null;
+  var key = (q.answerKey || []).map(normAnswer).filter(Boolean);
+  if (!key.length) return null;
+
+  if (q.type === "checkboxes") {
+    var given = (answers[q.id] || []).map(normAnswer).filter(Boolean);
+    if (given.length !== key.length) return false;
+    var left = key.slice();
+    for (var i = 0; i < given.length; i++) {
+      var at = left.indexOf(given[i]);
+      if (at < 0) return false;
+      left.splice(at, 1);
+    }
+    return left.length === 0;
+  }
+  var v = answers[q.id];
+  var flat = Array.isArray(v) ? v.join(", ")
+           : (v && typeof v === "object") ? Object.keys(v).map(function (k) { return v[k]; }).join(", ")
+           : v;
+  var got = normAnswer(flat);
+  return got ? key.indexOf(got) >= 0 : false;
+}
+
+function markQuiz() {
+  var hidden = hiddenSet(), score = 0, total = 0, marked = [];
+  questions().forEach(function (q) {
+    if (hidden[q.id] || !isMarkable(q)) return;
+    var pts = questionPoints(q), ok = isCorrect(q) === true;
+    total += pts;
+    if (ok) score += pts;
+    marked.push({ q: q, correct: ok, points: pts });
+  });
+  return { score: score, total: total, marked: marked };
+}
+
+function quizScoreBlock() {
+  var r = markQuiz();
+  if (!r.marked.length) return null;
+  var pct = r.total > 0 ? Math.round((r.score / r.total) * 100) : 0;
+
+  var list = el("ul", { class: "fs-marks" }, []);
+  r.marked.forEach(function (m) {
+    var note = m.correct ? m.q.feedbackCorrect : m.q.feedbackWrong;
+    var body = el("span", { class: "body" }, [
+      el("b", {}, [(m.q.title || "").trim() || "Untitled question"])
+    ]);
+    if (!m.correct && (m.q.answerKey || []).length)
+      body.appendChild(el("s", {}, ["Correct answer: " + m.q.answerKey.join(" / ")]));
+    if (note) body.appendChild(el("s", {}, [note]));
+    list.appendChild(el("li", { class: m.correct ? "ok" : "no" }, [
+      el("span", { class: "tick", html: m.correct ? ICON.markOk : ICON.markNo }),
+      body,
+      el("span", { class: "pts" }, [(m.correct ? m.points : 0) + "/" + m.points])
+    ]));
+  });
+
+  return el("div", { class: "fs-score" }, [
+    el("div", { class: "fs-scorehead" }, [
+      el("span", { class: "lbl" }, ["Your score"]),
+      el("b", {}, [String(r.score), el("s", {}, ["/" + r.total])]),
+      el("span", { class: "pc" }, [pct + "%"])
+    ]),
+    list
+  ]);
+}
+
 /* ---------------------------------------------------------------- the slip
    Mirrors src/fill/Receipt.tsx. A parent can print it at home or save it as a
    PDF from the phone's own share sheet. */
@@ -810,6 +988,13 @@ function send() {
     else valuesFor(q).forEach(function (v) { values.push(v); });
   });
 
+  // A quiz carries its marks in the last two columns.
+  if (settings().quiz) {
+    var r = markQuiz();
+    headers.push("Score", "Out of");
+    values.push(String(r.score), String(r.total));
+  }
+
   sending = true;
   render();
   fetch("/submit", {
@@ -844,7 +1029,7 @@ function advance() {
 /* Repaint only the error lines, so typing does not rebuild the whole page
    (which would steal focus from the box you are typing in). */
 function paintErrors() {
-  if (STYLE === "panel") {
+  if (hasSide()) {
     var side = document.querySelector(".fs-side");
     if (side) side.replaceWith(panelSide());
   }
@@ -859,11 +1044,11 @@ function render() {
   if (STYLE === "focus") { renderFocus(closed); return; }
 
   var root = el("div", { class: rootClass() }, []);
-  if (STYLE === "panel" || STYLE === "split") root.appendChild(panelSide());
+  if (hasSide()) root.appendChild(panelSide());
 
   var main = el("div", { class: "fs-main" }, []);
 
-  if (STYLE !== "panel" && STYLE !== "split") {
+  if (!hasSide()) {
     main.appendChild(el("header", { class: "fs-head" }, [
       el("div", { class: "fs-brand" }, [
         letterhead({
@@ -881,7 +1066,7 @@ function render() {
   }
 
   if (closed) {
-    main.appendChild(el("div", { style: (STYLE === "panel" || STYLE === "split") ? "padding-bottom:8px" : "padding:24px 0 0" }, [
+    main.appendChild(el("div", { style: hasSide() ? "padding-bottom:8px" : "padding:24px 0 0" }, [
       el("div", { class: "fs-closed" }, [
         el("span", { html: ICON.alert }),
         el("span", {}, ["This form is closed and is not accepting responses at the moment."])
@@ -977,6 +1162,7 @@ function renderDone(token) {
     el("span", { class: "tick", html: ICON.tick }),
     el("h2", { class: "dsp" }, ["Response recorded"]),
     el("p", {}, [settings().confirmationMessage || "Thank you!"]),
+    (settings().quiz && settings().quizShowScore !== false) ? quizScoreBlock() : null,
     slip ? receiptSlip(token) : null,
     slip
       ? el("div", { class: "fs-slipacts" }, [
@@ -989,7 +1175,7 @@ function renderDone(token) {
       : again
   ]);
   var root = el("div", { class: rootClass() }, []);
-  if (STYLE === "panel" || STYLE === "split") root.appendChild(panelSide());
+  if (hasSide()) root.appendChild(panelSide());
   root.appendChild(el("div", { class: "fs-main" }, [body]));
   app.appendChild(root);
   window.scrollTo({ top: 0, behavior: "smooth" });

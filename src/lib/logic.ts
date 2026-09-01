@@ -1,3 +1,4 @@
+import { SUBMIT_SECTION } from "../types";
 import type {
   AnswerValue,
   Answers,
@@ -114,8 +115,11 @@ export function isVisible(
  * just settles on the next keystroke.
  */
 export function hiddenIds(form: FormDef, answers: Answers): Set<string> {
-  const hidden = new Set<string>();
+  // Two ways a block can be off screen, and they compose: a section the
+  // respondent routed past, and a rule on the block itself.
+  const hidden = unreachedIds(form, answers);
   for (const q of form.questions) {
+    if (hidden.has(q.id)) continue;
     if (!isVisible(q, answers, hidden)) hidden.add(q.id);
   }
   return hidden;
@@ -168,4 +172,115 @@ export function describeConditions(form: FormDef, q: Question): string {
   });
   const verb = c.action === "hide" ? "Hidden" : "Shown";
   return `${verb} when ${parts.join(join)}.`;
+}
+
+/* --------------------------------------------------------- section routing */
+
+export interface FormSection {
+  /** The section block's id, or "" for the run of blocks before the first one. */
+  id: string;
+  title: string;
+  blocks: Question[];
+}
+
+/**
+ * Split a form at its section headings.
+ *
+ * The blocks before the first heading are a section too — an unnamed one with
+ * the id "". Without it a form that branches from its very first question would
+ * have nowhere to branch *from*.
+ */
+export function sectionsOf(form: FormDef): FormSection[] {
+  const out: FormSection[] = [{ id: "", title: "", blocks: [] }];
+  for (const q of form.questions) {
+    if (q.type === "section") {
+      out.push({ id: q.id, title: q.title || "Section", blocks: [q] });
+    } else {
+      out[out.length - 1].blocks.push(q);
+    }
+  }
+  // Drop the leading run only when it is genuinely empty.
+  return out[0].blocks.length ? out : out.slice(1);
+}
+
+/**
+ * Walk the form the way a respondent does and return the sections they reach.
+ *
+ * Routing follows Google Forms' shape: a section can name where to go next, and
+ * a chosen multiple-choice option can override it. Anything never reached is
+ * treated exactly like a hidden question — the answer is kept, and the Excel
+ * column is written blank.
+ *
+ * Loops are possible to build by hand ("Section B → Section A"), so the walk
+ * stops the moment it revisits a section. That turns an authoring mistake into
+ * a short form rather than a frozen browser.
+ */
+export function reachedSections(form: FormDef, answers: Answers): Set<string> {
+  const sections = sectionsOf(form);
+  if (!sections.length) return new Set();
+
+  const indexOf = new Map<string, number>();
+  sections.forEach((s, i) => indexOf.set(s.id, i));
+
+  const reached = new Set<string>();
+  let i = 0;
+
+  while (i >= 0 && i < sections.length) {
+    const sec = sections[i];
+    if (reached.has(sec.id)) break; // loop guard
+    reached.add(sec.id);
+
+    // A routed answer inside this section wins over the section's own setting.
+    let target: string | undefined;
+    for (const q of sec.blocks) {
+      if (q.type !== "multiple_choice") continue;
+      const picked = answers[q.id];
+      if (typeof picked !== "string" || !picked) continue;
+      const opt = q.options.find((o) => o.label === picked);
+      if (opt?.goTo) {
+        target = opt.goTo;
+        break;
+      }
+    }
+    if (target === undefined) target = sec.blocks[0]?.nextSection || "";
+
+    if (target === SUBMIT_SECTION) break;
+    if (!target) {
+      i += 1;
+      continue;
+    }
+    const next = indexOf.get(target);
+    // A destination that has since been deleted falls through to the next
+    // section rather than ending the form under somebody.
+    i = next === undefined ? i + 1 : next;
+  }
+
+  return reached;
+}
+
+/** Blocks sitting in a section the respondent never reaches. */
+export function unreachedIds(form: FormDef, answers: Answers): Set<string> {
+  const reached = reachedSections(form, answers);
+  const out = new Set<string>();
+  for (const sec of sectionsOf(form)) {
+    if (reached.has(sec.id)) continue;
+    for (const b of sec.blocks) out.add(b.id);
+  }
+  return out;
+}
+
+/** Sections a given block may route to — itself and everything before it excluded. */
+export function laterSections(form: FormDef, fromId: string): FormSection[] {
+  const secs = sectionsOf(form).filter((s) => s.id !== "");
+  const at = secs.findIndex((s) => s.id === fromId);
+  return at < 0 ? secs : secs.slice(at + 1);
+}
+
+/** True when this form uses section routing anywhere. */
+export function hasRouting(form: FormDef): boolean {
+  return form.questions.some(
+    (q) =>
+      (q.type === "section" && !!q.nextSection) ||
+      q.options.some((o) => !!o.goTo)
+  );
 }

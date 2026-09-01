@@ -7,6 +7,7 @@ import { useFormLogic } from "../lib/useFormLogic";
 import { colorwayClass } from "../lib/colorway";
 import { Field } from "./Field";
 import { Receipt } from "./Receipt";
+import { markQuiz } from "../lib/quiz";
 import type { Answers, AnswerValue, FormDef, Question } from "../types";
 
 /**
@@ -121,6 +122,10 @@ export function FormRenderer({
         <h2 className="dsp">Response recorded</h2>
         <p>{form.settings.confirmationMessage}</p>
 
+        {form.settings.quiz && form.settings.quizShowScore !== false && (
+          <QuizScore form={form} answers={answers} hidden={logic.hidden} />
+        )}
+
         {slip && (
           <>
             <Receipt form={form} answers={answers} token={token} hidden={logic.hidden} />
@@ -146,7 +151,7 @@ export function FormRenderer({
     );
     return (
       <div className={cls} ref={root}>
-        {(style === "panel" || style === "split") && (
+        {HAS_SIDE.has(style) && (
           <PanelSide form={form} answers={answers} pct={100} logicHidden={logic.hidden} />
         )}
         <div className="fs-main">{body}</div>
@@ -182,12 +187,12 @@ export function FormRenderer({
 
   return (
     <div className={cls} ref={root}>
-      {(style === "panel" || style === "split") && (
+      {HAS_SIDE.has(style) && (
         <PanelSide form={form} answers={answers} pct={pct} logicHidden={logic.hidden} />
       )}
 
       <div className="fs-main">
-        {style !== "panel" && style !== "split" && (
+        {!HAS_SIDE.has(style) && (
           <header className="fs-head">
             <div className="fs-brand">
               {/* Cover sets the letterhead on orange, so the artwork needs a
@@ -257,6 +262,71 @@ export function FormRenderer({
           )}
         </footer>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Styles that put the branding in a panel beside the form rather than above it.
+ * They share one component, so a change to the progress wall lands in all of
+ * them at once.
+ */
+const HAS_SIDE = new Set<FormDef["settings"]["style"]>(["panel", "split", "prospectus"]);
+
+/* ------------------------------------------------------------- quiz score */
+
+/**
+ * The marked result, shown straight after submitting.
+ *
+ * Only questions the respondent actually saw are counted, so a branch that
+ * skipped three questions doesn't leave somebody with 4/10 for a test they were
+ * never given.
+ */
+function QuizScore({
+  form,
+  answers,
+  hidden,
+}: {
+  form: FormDef;
+  answers: Answers;
+  hidden: Set<string>;
+}) {
+  const { score, total, marked } = markQuiz(form, answers, hidden);
+  if (!marked.length) return null;
+  const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+
+  return (
+    <div className="fs-score">
+      <div className="fs-scorehead">
+        <span className="lbl">Your score</span>
+        <b>
+          {score}
+          <s>/{total}</s>
+        </b>
+        <span className="pc">{pct}%</span>
+      </div>
+      <ul className="fs-marks">
+        {marked.map(({ q, correct, points }) => {
+          const note = correct ? q.feedbackCorrect : q.feedbackWrong;
+          return (
+            <li key={q.id} className={correct ? "ok" : "no"}>
+              <span className="tick" aria-hidden="true">
+                <Icon name={correct ? "check" : "x"} size={13} />
+              </span>
+              <span className="body">
+                <b>{q.title.trim() || "Untitled question"}</b>
+                {!correct && q.answerKey.length > 0 && (
+                  <s>Correct answer: {q.answerKey.join(" / ")}</s>
+                )}
+                {note && <s>{note}</s>}
+              </span>
+              <span className="pts">
+                {correct ? points : 0}/{points}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
