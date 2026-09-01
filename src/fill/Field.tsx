@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Icon } from "../components/Icons";
 import { shuffled } from "../lib/answers";
 import { humanSize, pictureFromClipboard, pictureFromDrop, readPicture } from "../lib/image";
+import { applyMask, maskExample } from "../lib/mask";
 import type { AnswerValue, FormStyle, Question } from "../types";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -55,14 +56,18 @@ export function Field({
         : q.type === "time" ? "time"
         : "text";
       const narrow = q.type === "date" || q.type === "time";
+      // A masked field is typed as text: `type="number"` would strip the
+      // punctuation the mask inserts, and a leading zero with it.
+      const masked = !!q.mask && (q.type === "short_text" || q.type === "number" || q.type === "phone");
       return (
         <input
           className={`fs-input${narrow ? " fs-narrow" : ""}`}
-          type={type}
+          type={masked ? "text" : type}
+          inputMode={masked && /^[9\- ]+$/.test(q.mask) ? "numeric" : undefined}
           value={str}
-          placeholder={q.placeholder}
+          placeholder={q.placeholder || (masked ? maskExample(q.mask) : "")}
           autoFocus={autoFocus}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(masked ? applyMask(e.target.value, q.mask) : e.target.value)}
         />
       );
     }

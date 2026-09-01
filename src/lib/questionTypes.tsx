@@ -72,6 +72,9 @@ export function newQuestion(type: QuestionType = "short_text"): Question {
     image: "",
     imageCaption: "",
     imageWidth: "medium",
+    mask: "",
+    pattern: "",
+    patternMessage: "",
   };
 }
 
@@ -88,6 +91,9 @@ export function morphQuestion(q: Question, type: QuestionType): Question {
     hasOther: meta.hasOptions ? q.hasOther : false,
     placeholder: meta.hasPlaceholder ? q.placeholder : "",
     required: isDisplay(type) ? false : q.required,
+    // A mask only means anything on a typed field; carrying one onto a
+    // dropdown would silently reject every option.
+    mask: meta.hasPlaceholder ? q.mask : "",
   };
 }
 
@@ -110,8 +116,56 @@ export function newForm(
       collectTimestamp: true,
       accent: "#F06522",
       acceptingResponses: true,
+      colorway: "brand",
+      kiosk: false,
+      receipt: {
+        enabled: false,
+        title: "",
+        fields: [],
+        showToken: true,
+        tokenPrefix: "",
+        note: "Please keep this slip. Bring it with you when you visit the office.",
+      },
+      webhookUrl: "",
     },
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+/**
+ * Bring a form saved by an older version up to the current shape.
+ *
+ * Forms are plain JSON on disk and the app is updated in the field, so a form
+ * written last term will be missing fields the code now reads. Filling the gaps
+ * here — once, on load — keeps every screen free of `?.` and `??` chains, and
+ * means an old form silently gains the new features rather than crashing on
+ * them.
+ */
+export function normalizeForm(raw: import("../types").FormDef): import("../types").FormDef {
+  const base = newForm();
+  const s = raw.settings ?? base.settings;
+  return {
+    ...raw,
+    questions: (raw.questions ?? []).map((q) => ({
+      ...newQuestion(q.type ?? "short_text"),
+      ...q,
+      // Drop rules pointing at questions that no longer exist, or the branch
+      // would be permanently unsatisfiable and its question invisible forever.
+      conditions: q.conditions?.rules?.length
+        ? {
+            action: q.conditions.action ?? "show",
+            match: q.conditions.match ?? "all",
+            rules: q.conditions.rules.filter((r) =>
+              (raw.questions ?? []).some((x) => x.id === r.fieldId)
+            ),
+          }
+        : undefined,
+    })),
+    settings: {
+      ...base.settings,
+      ...s,
+      receipt: { ...base.settings.receipt, ...(s.receipt ?? {}) },
+    },
   };
 }

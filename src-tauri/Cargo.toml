@@ -1,6 +1,6 @@
 [package]
 name = "jws-forms"
-version = "0.1.1"
+version = "0.1.2"
 description = "JWS Forms — school-branded form builder"
 authors = ["JWS School"]
 edition = "2021"

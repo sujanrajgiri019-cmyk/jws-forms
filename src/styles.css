@@ -658,6 +658,21 @@ table.data td { font-variant-numeric: tabular-nums; }
 .th-cov .top em { height: 5px; width: 68%; background: rgba(255,255,255,.85); border-radius: 2px; }
 .th-cov .bot { padding: 9px 12px; display: flex; flex-direction: column; gap: 5px; }
 .th-cov .bot s { height: 5px; background: var(--hair); border-radius: 2px; text-decoration: none; }
+/* split screen: a sticky pane on the left, the form scrolling on the right */
+.th-spl { display: flex; height: 100%; }
+.th-spl .l {
+  width: 42%; background: linear-gradient(158deg, var(--o-500), var(--o-700));
+  display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 10px;
+}
+.th-spl .l i { height: 11px; width: 11px; border-radius: 3px; background: #fff; }
+.th-spl .l em { height: 5px; width: 74%; background: rgba(255,255,255,.85); border-radius: 2px; }
+.th-spl .r { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+.th-spl .r s { height: 4px; width: 58%; background: var(--ink); border-radius: 2px; text-decoration: none; }
+.th-spl .r u {
+  height: 9px; background: #fff; border: 1px solid var(--hair);
+  border-radius: 3px; text-decoration: none;
+}
+
 .styleopt .thumb { height: 96px; }
 
 /* ==========================================================================
@@ -706,3 +721,55 @@ table.data td { font-variant-numeric: tabular-nums; }
 .seg button:last-child { border-right: 0; }
 .seg button:hover { background: var(--o-50); color: var(--o-700); }
 .seg button.on { background: var(--o-500); color: #fff; }
+
+/* ==========================================================================
+   LOGIC BUILDER
+   ========================================================================== */
+
+.logicbox {
+  margin-top: 16px; padding: 16px 18px;
+  border: 1px solid var(--hair); border-left: 3px solid var(--o-500);
+  border-radius: var(--r); background: var(--o-25, #FFF8F3);
+}
+.rulerow {
+  display: grid; grid-template-columns: minmax(0, 1.4fr) 128px minmax(0, 1fr) 34px;
+  gap: 8px; align-items: center;
+}
+.rulerow .select, .rulerow .input { min-width: 0; }
+.rulespacer { display: block; }
+@media (max-width: 900px) {
+  .rulerow { grid-template-columns: 1fr 1fr; }
+  .rulespacer { display: none; }
+}
+
+/* A conditional question says so on its closed card — a block that vanishes
+   with no visible reason is the thing people file bugs about. */
+.rulechip {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 12px;
+  font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
+  background: var(--o-50); color: var(--o-700);
+  border: 1px solid var(--hair); border-radius: 99px; padding: 4px 12px 4px 10px;
+}
+.rulechip:hover { background: var(--o-100); }
+
+/* colourway swatches on the Design tab */
+.cwpick { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.cwopt {
+  display: flex; align-items: center; gap: 11px; text-align: left; cursor: pointer;
+  border: 1.5px solid var(--hair); border-radius: var(--r); padding: 11px 13px;
+  background: var(--paper); font: inherit; color: inherit;
+}
+.cwopt:hover { border-color: var(--edge); }
+.cwopt.on { border-color: var(--o-500); background: var(--o-50); }
+.cwopt .dot { width: 26px; height: 26px; border-radius: 8px; flex: none; border: 1px solid rgba(0,0,0,.08); }
+.cwopt b { display: block; font-size: 13.5px; font-weight: 650; }
+.cwopt s { display: block; text-decoration: none; font-size: 11.5px; color: var(--ink-3); margin-top: 1px; }
+
+/* receipt field chooser */
+.slipfields { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+.slipfield {
+  display: flex; align-items: center; gap: 9px; font-size: 13.5px;
+  border: 1px solid var(--hair); border-radius: 9px; padding: 8px 11px; cursor: pointer;
+  background: var(--paper);
+}
+.slipfield.on { border-color: var(--o-500); background: var(--o-50); }

@@ -12,6 +12,7 @@ const STYLE_NAMES: Record<FormStyle, string> = {
   letterhead: "Letterhead",
   cards: "Cards",
   cover: "Cover",
+  split: "Split screen",
 };
 
 /**

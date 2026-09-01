@@ -128,9 +128,127 @@ function letterhead(opts) {
     contact
   ]);
 }
+/* The form root wears its style, its colourway and, at a counter, kiosk mode. */
+function rootClass() {
+  var st = settings();
+  var cw = st.colorway || "brand";
+  if (cw === "auto") {
+    var inst = st.institution || "school";
+    cw = inst === "college" ? "navy" : inst === "plus2" ? "amber" : "royal";
+  }
+  return "fs fs-" + STYLE + (cw === "brand" ? "" : " cw-" + cw) + (st.kiosk ? " fs-kiosk" : "");
+}
 function questions() { return FORM.questions || []; }
 function isDisplayBlock(t) { return t === "section" || t === "image"; }
-function answerable() { return questions().filter(function (q) { return !isDisplayBlock(q.type); }); }
+
+/* ------------------------------------------------------- conditional logic
+   Mirrors src/lib/logic.ts. A hidden question keeps its answer and still owns
+   its Excel column — it is submitted blank. */
+
+function answerText(v) {
+  if (v === null || v === undefined) return "";
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "object") {
+    return Object.keys(v).map(function (k) {
+      var x = v[k];
+      return Array.isArray(x) ? x.join(", ") : String(x === null || x === undefined ? "" : x);
+    }).join(", ");
+  }
+  return String(v);
+}
+function answerList(v) {
+  if (v === null || v === undefined) return [];
+  if (Array.isArray(v)) return v.map(String);
+  if (typeof v === "object") {
+    var out = [];
+    Object.keys(v).forEach(function (k) {
+      var x = v[k];
+      if (Array.isArray(x)) out = out.concat(x.map(String));
+      else out.push(String(x === null || x === undefined ? "" : x));
+    });
+    return out;
+  }
+  var s = String(v);
+  return s === "" ? [] : [s];
+}
+function ruleWanted(r) {
+  var vals = Array.isArray(r.value) ? r.value : [r.value];
+  return vals.map(function (x) { return String(x === null || x === undefined ? "" : x).trim(); })
+             .filter(function (x) { return x !== ""; });
+}
+function evaluateRule(r) {
+  var raw = answers[r.fieldId];
+  var text = answerText(raw).trim();
+  var list = answerList(raw).map(function (x) { return x.trim(); });
+  var want = ruleWanted(r);
+  function hit(v) { return want.some(function (w) { return v.toLowerCase() === w.toLowerCase(); }); }
+  switch (r.operator) {
+    case "is_empty": return text === "";
+    case "is_not_empty": return text !== "";
+    case "equals": return want.length === 0 ? text === "" : list.some(hit);
+    case "not_equals": return want.length === 0 ? text !== "" : !list.some(hit);
+    case "contains":
+      return want.some(function (w) { return text.toLowerCase().indexOf(w.toLowerCase()) >= 0; });
+    default: return true;
+  }
+}
+function hiddenSet() {
+  var hidden = {};
+  questions().forEach(function (q) {
+    var c = q.conditions;
+    if (!c || !c.rules || !c.rules.length) return;
+    var results = c.rules.map(function (r) { return hidden[r.fieldId] ? false : evaluateRule(r); });
+    var matched = c.match === "any"
+      ? results.some(Boolean)
+      : results.every(Boolean);
+    var visible = c.action === "hide" ? !matched : matched;
+    if (!visible) hidden[q.id] = true;
+  });
+  return hidden;
+}
+function visibleBlocks() {
+  var hidden = hiddenSet();
+  return questions().filter(function (q) { return !hidden[q.id]; });
+}
+
+/* -------------------------------------------------------------- masking
+   Mirrors src/lib/mask.ts. */
+
+function maskAccepts(slot, ch) {
+  if (slot === "9") return ch >= "0" && ch <= "9";
+  if (slot === "A") return /[a-z]/i.test(ch);
+  if (slot === "*") return (ch >= "0" && ch <= "9") || /[a-z]/i.test(ch);
+  return false;
+}
+function isMaskSlot(c) { return c === "9" || c === "A" || c === "*"; }
+function applyMask(raw, mask) {
+  if (!mask) return raw;
+  var src = String(raw).split(""), out = "", i = 0;
+  for (var m = 0; m < mask.length; m++) {
+    var slot = mask[m];
+    if (i >= src.length) break;
+    if (isMaskSlot(slot)) {
+      while (i < src.length && !maskAccepts(slot, src[i])) i++;
+      if (i >= src.length) break;
+      out += src[i++];
+    } else {
+      out += slot;
+      if (src[i] === slot) i++;
+    }
+  }
+  return out;
+}
+function maskComplete(value, mask) {
+  if (!mask) return true;
+  if (!value) return false;
+  return applyMask(value, mask).length === mask.length;
+}
+function maskExample(mask) {
+  return mask.split("").map(function (c) {
+    return c === "9" ? "0" : c === "A" ? "X" : c === "*" ? "\u2022" : c;
+  }).join("");
+}
+function answerable() { return visibleBlocks().filter(function (q) { return !isDisplayBlock(q.type); }); }
 function settings() { return FORM.settings || {}; }
 
 /* ---------------------------------------------------------- answers model
@@ -170,8 +288,15 @@ function validate(q) {
   if (!isAnswered(q)) return "";
   var s = String(answers[q.id]);
   if (q.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "Enter a valid email address.";
-  if (q.type === "phone" && !/^[0-9+\-\s()]{6,}$/.test(s)) return "Enter a valid phone number.";
-  if (q.type === "number" && isNaN(Number(s))) return "Enter a number.";
+  if (q.type === "phone" && !q.mask && !/^[0-9+\-\s()]{6,}$/.test(s)) return "Enter a valid phone number.";
+  if (q.type === "number" && !q.mask && isNaN(Number(s))) return "Enter a number.";
+  if (q.mask && !maskComplete(s, q.mask))
+    return "Finish this \u2014 it should look like " + maskExample(q.mask) + ".";
+  if (q.pattern) {
+    var re = null;
+    try { re = new RegExp(q.pattern); } catch (e) { re = null; }
+    if (re && !re.test(s)) return (q.patternMessage || "").trim() || "That does not look right.";
+  }
   return "";
 }
 function completion() {
@@ -196,6 +321,35 @@ function setAnswer(id, v) {
   render();
 }
 
+/* Does anything branch on this question? Typing into a field that drives a
+   rule has to re-lay-out the form; typing into one that doesn't must not, or
+   every keystroke would steal the caret. */
+function drivesLogic(id) {
+  return questions().some(function (q) {
+    return (q.conditions && q.conditions.rules || []).some(function (r) { return r.fieldId === id; });
+  });
+}
+
+/* Re-render on the next frame, then put the caret back where it was. */
+var relayoutPending = false;
+function scheduleRelayout() {
+  if (relayoutPending) return;
+  relayoutPending = true;
+  requestAnimationFrame(function () {
+    relayoutPending = false;
+    var active = document.activeElement;
+    var id = active && active.closest ? active.closest("[data-q]") : null;
+    var at = active && active.selectionStart;
+    id = id ? id.getAttribute("data-q") : null;
+    render();
+    if (!id) return;
+    var back = document.querySelector('[data-q="' + id + '"] .fs-input, [data-q="' + id + '"] .fs-textarea');
+    if (!back) return;
+    back.focus();
+    try { if (at !== null && at !== undefined) back.setSelectionRange(at, at); } catch (e) {}
+  });
+}
+
 /* ------------------------------------------------------------------ field */
 
 function field(q) {
@@ -203,10 +357,27 @@ function field(q) {
   var str = typeof v === "string" ? v : "";
 
   function textish(type, cls) {
+    var masked = !!q.mask && (q.type === "short_text" || q.type === "number" || q.type === "phone");
     return el("input", {
-      class: "fs-input" + (cls || ""), type: type, value: str,
-      placeholder: q.placeholder || "",
-      oninput: function (e) { answers[q.id] = e.target.value; if (errors[q.id]) { delete errors[q.id]; paintErrors(); } }
+      // A masked field is typed as text: type="number" would strip the
+      // punctuation the mask inserts, and a leading zero with it.
+      class: "fs-input" + (cls || ""), type: masked ? "text" : type, value: str,
+      inputmode: masked && /^[9\- ]+$/.test(q.mask) ? "numeric" : null,
+      placeholder: q.placeholder || (masked ? maskExample(q.mask) : ""),
+      oninput: function (e) {
+        if (masked) {
+          var next = applyMask(e.target.value, q.mask);
+          if (next !== e.target.value) e.target.value = next;
+          answers[q.id] = next;
+        } else {
+          answers[q.id] = e.target.value;
+        }
+        // A rule may depend on this field, so the form has to re-evaluate —
+        // but re-rendering on every keystroke would steal focus. Only redraw
+        // when something actually depends on this question.
+        if (drivesLogic(q.id)) { scheduleRelayout(); return; }
+        if (errors[q.id]) { delete errors[q.id]; paintErrors(); }
+      }
     });
   }
 
@@ -462,6 +633,61 @@ function photoField(q, str) {
   return box;
 }
 
+/* ---------------------------------------------------------------- the slip
+   Mirrors src/fill/Receipt.tsx. A parent can print it at home or save it as a
+   PDF from the phone's own share sheet. */
+
+function formatToken(count) {
+  var r = settings().receipt || {};
+  if (!r.enabled || r.showToken === false) return "";
+  var n = String(Math.max(1, count || 1));
+  while (n.length < 4) n = "0" + n;
+  return (r.tokenPrefix || "") + n;
+}
+
+function receiptSlip(token) {
+  var r = settings().receipt || {};
+  var hidden = hiddenSet();
+  var rows = el("dl", { class: "slip-rows" }, [
+    el("div", {}, [el("dt", {}, ["Received"]), el("dd", {}, [new Date().toLocaleString()])])
+  ]);
+
+  (r.fields || []).forEach(function (id) {
+    var q = questions().filter(function (x) { return x.id === id; })[0];
+    if (!q || hidden[id]) return;
+    var v = valuesFor(q).filter(Boolean).join(", ");
+    if (!v) return;
+    rows.appendChild(el("div", {}, [
+      el("dt", {}, [(q.title || "").trim() || "Answer"]),
+      el("dd", {}, [v])
+    ]));
+  });
+
+  return el("div", { class: "slip", id: "jws-slip" }, [
+    el("div", { class: "slip-head" }, [
+      // The mark alone — the name is set beside it, so a lockup would print
+      // "Janapremi World School" twice.
+      logoImg(38, false),
+      el("div", { class: "slip-org" }, [
+        el("b", {}, [BRAND.name]),
+        el("span", {}, [BRAND.address]),
+        el("span", {}, [BRAND.phones])
+      ])
+    ]),
+    el("h3", { class: "slip-title" }, [(r.title || "").trim() || FORM.title || "Acknowledgement"]),
+    token ? el("div", { class: "slip-token" }, [
+      el("span", { class: "lbl" }, ["Token"]),
+      el("b", {}, [token])
+    ]) : null,
+    rows,
+    (r.note || "").trim() ? el("p", { class: "slip-note" }, [r.note]) : null,
+    el("div", { class: "slip-foot" }, [
+      el("span", {}, [FORM.title || "JWS Forms"]),
+      el("span", {}, ["Office copy \u00b7 not a receipt of payment"])
+    ])
+  ]);
+}
+
 /* ------------------------------------------------------------ question block */
 
 function questionBlock(q, index) {
@@ -499,7 +725,7 @@ function sectionBlock(q) {
 
 function panelSide() {
   var groups = [], cur = { title: "Questions", qs: [] };
-  questions().forEach(function (q) {
+  visibleBlocks().forEach(function (q) {
     if (q.type === "section") {
       if (cur.qs.length) groups.push(cur);
       cur = { title: q.title || "Section", qs: [] };
@@ -554,13 +780,13 @@ function panelSide() {
 
 function submitAll() {
   errors = {};
-  questions().forEach(function (q) {
+  visibleBlocks().forEach(function (q) {
     var m = validate(q);
     if (m) errors[q.id] = m;
   });
   if (Object.keys(errors).length) {
     render();
-    var first = questions().filter(function (q) { return errors[q.id]; })[0];
+    var first = visibleBlocks().filter(function (q) { return errors[q.id]; })[0];
     var node = first && document.querySelector('[data-q="' + first.id + '"]');
     if (node) node.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
@@ -569,14 +795,19 @@ function submitAll() {
 }
 
 function send() {
-  var headers = [], values = [];
+  var headers = [], values = [], hidden = hiddenSet();
   if (settings().collectTimestamp !== false) {
     headers.push("Timestamp");
     values.push(new Date().toLocaleString());
   }
-  answerable().forEach(function (q) {
-    headersFor(q).forEach(function (h) { headers.push(h); });
-    valuesFor(q).forEach(function (v) { values.push(v); });
+  // Every column is written, hidden ones blank, so the sheet keeps one shape
+  // whether or not a branch was taken.
+  questions().forEach(function (q) {
+    if (isDisplayBlock(q.type)) return;
+    var cols = headersFor(q);
+    cols.forEach(function (h) { headers.push(h); });
+    if (hidden[q.id]) cols.forEach(function () { values.push(""); });
+    else valuesFor(q).forEach(function (v) { values.push(v); });
   });
 
   sending = true;
@@ -590,7 +821,7 @@ function send() {
     .then(function (d) {
       sending = false;
       if (!d.ok) throw new Error(d.error || "The school computer could not save this response.");
-      renderDone();
+      renderDone(formatToken(d.count));
     })
     .catch(function (e) {
       sending = false;
@@ -601,7 +832,7 @@ function send() {
 }
 
 function advance() {
-  var qs = questions(), q = qs[step];
+  var qs = visibleBlocks(), q = qs[Math.min(step, Math.max(qs.length - 1, 0))];
   if (q && !isDisplayBlock(q.type)) {
     var m = validate(q);
     if (m) { errors = {}; errors[q.id] = m; render(); return; }
@@ -627,12 +858,12 @@ function render() {
 
   if (STYLE === "focus") { renderFocus(closed); return; }
 
-  var root = el("div", { class: "fs fs-" + STYLE }, []);
-  if (STYLE === "panel") root.appendChild(panelSide());
+  var root = el("div", { class: rootClass() }, []);
+  if (STYLE === "panel" || STYLE === "split") root.appendChild(panelSide());
 
   var main = el("div", { class: "fs-main" }, []);
 
-  if (STYLE !== "panel") {
+  if (STYLE !== "panel" && STYLE !== "split") {
     main.appendChild(el("header", { class: "fs-head" }, [
       el("div", { class: "fs-brand" }, [
         letterhead({
@@ -650,7 +881,7 @@ function render() {
   }
 
   if (closed) {
-    main.appendChild(el("div", { style: STYLE === "panel" ? "padding-bottom:8px" : "padding:24px 0 0" }, [
+    main.appendChild(el("div", { style: (STYLE === "panel" || STYLE === "split") ? "padding-bottom:8px" : "padding:24px 0 0" }, [
       el("div", { class: "fs-closed" }, [
         el("span", { html: ICON.alert }),
         el("span", {}, ["This form is closed and is not accepting responses at the moment."])
@@ -660,7 +891,7 @@ function render() {
 
   var flow = el("div", { class: "fs-flow" }, []);
   var n = 0;
-  questions().forEach(function (q) {
+  visibleBlocks().forEach(function (q) {
     if (q.type === "section") { flow.appendChild(sectionBlock(q)); return; }
     if (q.type === "image") { var pb = pictureBlock(q); if (pb) flow.appendChild(pb); return; }
     n++;
@@ -680,7 +911,7 @@ function render() {
 }
 
 function renderFocus(closed) {
-  var qs = questions(), q = qs[step];
+  var qs = visibleBlocks(), q = qs[Math.min(step, Math.max(qs.length - 1, 0))];
   if (!q) return;
   var pct = Math.round(completion() * 100);
   var last = step === qs.length - 1;
@@ -692,7 +923,7 @@ function renderFocus(closed) {
             : q.type === "image" ? (pictureBlock(q) || sectionBlock(q))
             : questionBlock(q, index);
 
-  app.appendChild(el("div", { class: "fs fs-focus" }, [
+  app.appendChild(el("div", { class: rootClass() }, [
     el("div", { class: "fs-watermark" }, [el("img", { src: "/logo.png", alt: "" })]),
     el("div", { class: "fs-topbar" }, [el("i", { style: "width:" + Math.max(pct, 4) + "%" })]),
     el("div", { class: "fs-crumb" }, [
@@ -731,21 +962,34 @@ function renderFocus(closed) {
   }
 }
 
-function renderDone() {
+function renderDone(token) {
   app.innerHTML = "";
+  var slip = (settings().receipt || {}).enabled;
+  var again = settings().allowMultiple !== false
+    ? el("button", {
+        class: slip ? "fs-clear" : "fs-submit", type: "button",
+        style: slip ? "" : "margin-top:14px",
+        onclick: function () { answers = {}; errors = {}; step = 0; render(); window.scrollTo({ top: 0 }); }
+      }, [slip ? "Next person" : "Submit another response"])
+    : null;
+
   var body = el("div", { class: "fs-done" }, [
     el("span", { class: "tick", html: ICON.tick }),
     el("h2", { class: "dsp" }, ["Response recorded"]),
     el("p", {}, [settings().confirmationMessage || "Thank you!"]),
-    settings().allowMultiple !== false
-      ? el("button", {
-          class: "fs-submit", type: "button", style: "margin-top:14px",
-          onclick: function () { answers = {}; errors = {}; step = 0; render(); window.scrollTo({ top: 0 }); }
-        }, ["Submit another response"])
-      : null
+    slip ? receiptSlip(token) : null,
+    slip
+      ? el("div", { class: "fs-slipacts" }, [
+          el("button", {
+            class: "fs-submit", type: "button",
+            onclick: function () { window.print(); }
+          }, ["Print / Save as PDF"]),
+          again
+        ])
+      : again
   ]);
-  var root = el("div", { class: "fs fs-" + STYLE }, []);
-  if (STYLE === "panel") root.appendChild(panelSide());
+  var root = el("div", { class: rootClass() }, []);
+  if (STYLE === "panel" || STYLE === "split") root.appendChild(panelSide());
   root.appendChild(el("div", { class: "fs-main" }, [body]));
   app.appendChild(root);
   window.scrollTo({ top: 0, behavior: "smooth" });

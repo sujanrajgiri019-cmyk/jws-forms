@@ -549,7 +549,7 @@
 .fs-cards { background: var(--o-l); }
 .fs-cards .fs-main { max-width: 720px; margin: 0 auto; width: 100%; padding: 0 20px 70px; }
 .fs-cards .fs-head {
-  background: #fff; border-radius: 20px; padding: 32px 34px;
+  background: var(--w); border-radius: 20px; padding: 32px 34px;
   margin-top: 30px; box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 18px 40px -26px rgba(200,90,40,.5);
   border-top: 6px solid var(--o);
 }
@@ -558,7 +558,7 @@
 .fs-cards .fs-headnote { margin-top: 14px; color: var(--k3); font-size: 13px; }
 .fs-cards .fs-flow { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
 .fs-cards .fs-q {
-  background: #fff; border-radius: 18px; padding: 24px 26px;
+  background: var(--w); border-radius: 18px; padding: 24px 26px;
   box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 10px 26px -20px rgba(200,90,40,.55);
   border: 1px solid transparent;
   transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease);
@@ -576,15 +576,15 @@
   border: 1.5px solid var(--ln); border-radius: 14px; padding: 13px 16px; background: var(--o-l);
 }
 .fs-cards .fs-input:focus, .fs-cards .fs-textarea:focus, .fs-cards .fs-select:focus {
-  outline: none; border-color: var(--o); background: #fff; box-shadow: 0 0 0 4px rgba(240,101,34,.13);
+  outline: none; border-color: var(--o); background: var(--w); box-shadow: 0 0 0 4px var(--o-ll);
 }
 .fs-cards .fs-choice {
   border: 1.5px solid var(--ln); border-radius: 14px; padding: 13px 16px; background: var(--o-l);
   transition: border-color .16s var(--ease), background .16s var(--ease);
 }
 .fs-cards .fs-choices { gap: 9px; }
-.fs-cards .fs-choice:hover { border-color: var(--o-300, #FDAC80); background: #fff; }
-.fs-cards .fs-choice.on { border-color: var(--o); background: #fff; font-weight: 600; }
+.fs-cards .fs-choice:hover { border-color: var(--o); background: var(--o-l); }
+.fs-cards .fs-choice.on { border-color: var(--o); background: var(--o-ll); font-weight: 600; }
 .fs-cards .fs-mark { width: 19px; height: 19px; border-radius: 50%; border: 2px solid var(--ln2); flex: none; }
 .fs-cards .fs-choice.on .fs-mark { border-color: var(--o); background: var(--o); box-shadow: inset 0 0 0 3.5px #fff; }
 .fs-cards .fs-section {
@@ -594,7 +594,7 @@
 .fs-cards .fs-foot { margin-top: 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 .fs-cards .fs-submit { background: var(--o); color: #fff; border-radius: 99px; padding: 16px 40px; font-size: 15.5px; box-shadow: 0 8px 20px -8px rgba(240,101,34,.8); }
 .fs-cards .fs-submit:hover { background: var(--o-dd); }
-.fs-cards .fs-done { background: #fff; border-radius: 20px; margin-top: 30px; padding: 60px 30px; }
+.fs-cards .fs-done { background: var(--w); border-radius: 20px; margin-top: 30px; padding: 60px 30px; }
 
 /* ==========================================================================
    06 — COVER
@@ -626,7 +626,7 @@
 .fs-cover .fs-flow {
   max-width: 780px; margin: -28px auto 0; width: 100%; padding: 0 40px;
   display: flex; flex-direction: column; gap: 2px; position: relative;
-  background: #fff; border-radius: 22px 22px 0 0;
+  background: var(--w); border-radius: 22px 22px 0 0;
 }
 .fs-cover .fs-q { padding: 28px 0; border-bottom: 1px solid var(--ln); }
 .fs-cover .fs-q:first-child { padding-top: 38px; }
@@ -657,7 +657,7 @@
 .fs-cover .fs-section h2 { font-size: 21px; color: var(--o-dd); }
 .fs-cover .fs-foot {
   max-width: 780px; margin: 0 auto; width: 100%; padding: 30px 40px 70px;
-  background: #fff; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  background: var(--w); display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
 }
 .fs-cover .fs-submit { background: var(--o); color: #fff; border-radius: 14px; padding: 15px 34px; font-size: 15px; }
 .fs-cover .fs-submit:hover { background: var(--o-d); }
@@ -753,3 +753,219 @@
   border-radius: 9px; padding: 5px 12px;
 }
 .fs-shot button:hover { background: var(--o-l); }
+
+/* ==========================================================================
+   07 — SPLIT SCREEN
+   A sticky branding pane on the left, the form scrolling on the right.
+   Built for an admission-campaign kiosk: the poster stays put and keeps
+   selling while the person works down the questions.
+   ========================================================================== */
+
+.fs-split { align-items: stretch; }
+.fs-split .fs-side {
+  position: sticky; top: 0; align-self: flex-start;
+  width: 42%; max-width: 560px; min-height: 100vh; height: 100vh;
+  padding: 54px 46px; display: flex; flex-direction: column;
+  background:
+    radial-gradient(120% 90% at 12% 8%, rgba(255,255,255,.16), transparent 60%),
+    linear-gradient(158deg, var(--o) 0%, var(--o-d) 62%, var(--o-dd) 100%);
+  color: #fff; overflow: hidden;
+}
+.fs-split .fs-side::after {
+  /* One quiet geometric mark so the pane isn't a flat slab of colour. */
+  content: ""; position: absolute; right: -140px; bottom: -180px;
+  width: 460px; height: 460px; border-radius: 50%;
+  background: rgba(255, 255, 255, .07); pointer-events: none;
+}
+.fs-split .fs-side > * { position: relative; z-index: 1; }
+.fs-split .fs-poster {
+  margin-top: 28px; border-radius: 18px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.1);
+}
+.fs-split .fs-poster img { display: block; width: 100%; height: auto; }
+.fs-split .fs-side h1 { margin-top: 30px; font-size: clamp(30px, 3.4vw, 44px); }
+.fs-split .fs-desc { color: rgba(255,255,255,.92); margin-top: 14px; white-space: pre-wrap; }
+.fs-split .fs-steps { margin-top: 26px; }
+.fs-split .fs-prog { margin-top: auto; padding-top: 26px; }
+
+.fs-split .fs-main { padding: 0; }
+.fs-split .fs-flow {
+  max-width: 680px; width: 100%; margin: 0 auto; padding: 54px 44px 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.fs-split .fs-q { padding: 24px 0; border-bottom: 1px solid var(--ln); }
+.fs-split .fs-q.invalid { background: var(--o-l); }
+.fs-split .fs-n {
+  font-family: var(--display); font-stretch: 112%; font-weight: 700;
+  font-size: 11px; letter-spacing: .14em; color: var(--o-d); margin-bottom: 8px;
+}
+.fs-split .fs-qtitle { font-family: var(--display); font-stretch: 114%; font-weight: 700; font-size: 19px; }
+.fs-split .fs-field { margin-top: 14px; }
+.fs-split .fs-input, .fs-split .fs-textarea, .fs-split .fs-select {
+  border: 1.5px solid var(--ln2); border-radius: 12px; padding: 12px 14px; font-size: 16px;
+}
+.fs-split .fs-input:focus, .fs-split .fs-textarea:focus, .fs-split .fs-select:focus {
+  outline: none; border-color: var(--o); box-shadow: 0 0 0 4px var(--o-ll);
+}
+/* Full-width rows rather than chips: this style is aimed at a kiosk, where
+   the target is a fingertip on a touchscreen, not a mouse pointer. */
+.fs-split .fs-choices { flex-direction: column; gap: 9px; }
+.fs-split .fs-choice {
+  border: 1.5px solid var(--ln2); border-radius: 11px; padding: 13px 18px;
+  background: var(--w); width: 100%; justify-content: flex-start;
+}
+.fs-split .fs-mark { display: none; }
+.fs-split .fs-choice:hover { border-color: var(--o); background: var(--o-l); }
+.fs-split .fs-choice.on { background: var(--o); border-color: var(--o); color: #fff; font-weight: 600; }
+.fs-split .fs-section { padding: 30px 0 4px; }
+.fs-split .fs-section h2 { font-size: 21px; color: var(--o-dd); }
+.fs-split .fs-foot {
+  max-width: 680px; margin: 0 auto; width: 100%; padding: 26px 44px 60px;
+  display: flex; align-items: center; gap: 18px;
+}
+.fs-split .fs-submit {
+  background: var(--o); color: #fff; border-radius: 12px;
+  padding: 15px 36px; font-size: 15.5px;
+  box-shadow: 0 8px 20px -10px var(--o-d);
+}
+.fs-split .fs-submit:hover { background: var(--o-dd); }
+.fs-split .fs-done { padding: 70px 44px; max-width: 680px; margin: 0 auto; }
+
+@container fsroot (max-width: 900px) {
+  .fs-split { flex-direction: column; }
+  .fs-split .fs-side {
+    width: 100%; max-width: none; min-height: 0; height: auto;
+    position: static; padding: 30px 24px 34px;
+  }
+  .fs-split .fs-flow, .fs-split .fs-foot { padding-left: 24px; padding-right: 24px; }
+  .fs-split .fs-prog { margin-top: 22px; }
+}
+
+/* ==========================================================================
+   COLOURWAYS
+   The layout, the mark and the wording never change — only the accent. Each
+   block redefines the same six tokens the rest of the sheet already reads.
+   ========================================================================== */
+
+.fs.cw-royal {
+  --o: #2455C4; --o-d: #1B429D; --o-dd: #143179;
+  --o-l: #F2F5FE; --o-ll: #DCE5FB; --ln: #DCE5FB; --ln2: #B9CBF6;
+}
+.fs.cw-amber {
+  --o: #D9820A; --o-d: #B26707; --o-dd: #8A4F05;
+  --o-l: #FEF8EE; --o-ll: #FCEBD1; --ln: #FBE8CD; --ln2: #F3CE95;
+}
+.fs.cw-navy {
+  --o: #1B3A63; --o-d: #142C4C; --o-dd: #0E2038;
+  --o-l: #F2F5F9; --o-ll: #DCE5EF; --ln: #DEE6EF; --ln2: #B3C4D8;
+}
+
+/* ==========================================================================
+   KIOSK — high contrast, for an unattended counter laptop under strip lights
+   ========================================================================== */
+
+.fs.fs-kiosk {
+  --w: #10151C; --k: #F4F7FB; --k2: #C6CEDA; --k3: #94A0B1; --k4: #6C7787;
+  --ln: #263143; --ln2: #38455B; --o-l: #16202E; --o-ll: #1D2B3D;
+  color-scheme: dark;
+}
+.fs.fs-kiosk { background: var(--w); color: var(--k); }
+.fs.fs-kiosk .fs-input,
+.fs.fs-kiosk .fs-textarea,
+.fs.fs-kiosk .fs-select { background: #161D28; color: var(--k); border-color: var(--ln2); }
+.fs.fs-kiosk .fs-choice { background: #161D28; color: var(--k); border-color: var(--ln2); }
+.fs.fs-kiosk .fs-choice.on { background: var(--o); border-color: var(--o); color: #fff; }
+.fs.fs-kiosk .fs-grid th, .fs.fs-kiosk .fs-grid td { border-color: var(--ln); }
+/* Cards and Cover paint their own surfaces; both now read --w, so they follow
+   kiosk mode. What they don't inherit is the shell behind them. */
+.fs-kiosk.fs-cards { background: #0A0E14; }
+.fs-kiosk.fs-cards .fs-q, .fs-kiosk.fs-cards .fs-head { border: 1px solid var(--ln); box-shadow: none; }
+.fs-kiosk.fs-cover .fs-flow { border: 1px solid var(--ln); border-bottom: 0; }
+.fs-kiosk .fs-qtitle, .fs-kiosk .dsp, .fs-kiosk h1, .fs-kiosk h2, .fs-kiosk h3 { color: var(--k); }
+.fs-kiosk .fs-desc, .fs-kiosk .fs-help, .fs-kiosk .fs-headnote { color: var(--k3); }
+.fs.fs-kiosk .fs-figure img,
+.fs.fs-kiosk .fs-shot img { background: #161D28; border-color: var(--ln2); }
+.fs.fs-kiosk .fs-drop { background: #161D28; border-color: var(--ln2); }
+.fs.fs-kiosk .fs-drop b { color: var(--o); }
+/* The mark is drawn on white artwork, so it needs its own plate in the dark. */
+.fs.fs-kiosk .letterhead img { background: #fff; border-radius: 8px; padding: 4px; }
+.fs.fs-kiosk .lh-name { color: var(--k); }
+.fs.fs-kiosk .lh-contact { color: var(--k3); }
+
+/* ==========================================================================
+   THE SLIP — an acknowledgement the counter hands over
+   ========================================================================== */
+
+.slip {
+  margin: 26px auto 0; max-width: 420px; width: 100%; text-align: left;
+  background: #fff; color: #201D1B;
+  border: 1px solid #E6D9CF; border-top: 4px solid var(--o);
+  border-radius: 4px; padding: 22px 24px 18px;
+  font-family: var(--body); font-size: 13.5px; line-height: 1.6;
+}
+.slip-head { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid #EFE4DB; }
+.slip-org { display: flex; flex-direction: column; min-width: 0; }
+.slip-org b { font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 14px; }
+.slip-org span { font-size: 11px; color: #7C7069; }
+.slip-title {
+  font-family: var(--display); font-stretch: 114%; font-weight: 700;
+  font-size: 16.5px; margin: 16px 0 0; text-align: center;
+}
+.slip-token {
+  margin: 14px auto 0; text-align: center; border: 1.5px dashed var(--o);
+  border-radius: 6px; padding: 10px 14px; background: var(--o-l);
+}
+.slip-token .lbl {
+  display: block; font-family: var(--display); font-stretch: 112%; font-weight: 600;
+  font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase; color: var(--o-dd);
+}
+.slip-token b {
+  display: block; font-family: var(--display); font-stretch: 116%; font-weight: 800;
+  font-size: 30px; letter-spacing: .04em; color: var(--o-dd);
+  font-variant-numeric: tabular-nums; line-height: 1.15;
+}
+.slip-rows { margin: 16px 0 0; display: flex; flex-direction: column; }
+.slip-rows > div {
+  display: grid; grid-template-columns: 40% 1fr; gap: 10px;
+  padding: 6px 0; border-bottom: 1px dotted #E6D9CF;
+}
+.slip-rows dt { color: #7C7069; font-size: 12px; }
+.slip-rows dd { margin: 0; font-weight: 600; word-break: break-word; }
+.slip-note { margin: 14px 0 0; font-size: 11.5px; color: #7C7069; }
+.slip-foot {
+  margin-top: 14px; padding-top: 10px; border-top: 1px solid #EFE4DB;
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: 10px; color: #A99D95;
+}
+.fs-slipacts { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 22px; }
+
+/* ==========================================================================
+   PRINT — the slip alone, nothing else
+   ========================================================================== */
+
+@media print {
+  @page { size: A5; margin: 10mm; }
+  html, body { background: #fff !important; }
+  /* Collapse the app's full-height layout, or the hidden-but-still-tall page
+     trails a blank sheet out of the printer behind the slip. */
+  html, body, #app, #root, .scroll, .fs, .fs-main, .fs-side, .fs-flow, .fs-done {
+    height: auto !important; min-height: 0 !important; max-height: none !important;
+    overflow: visible !important; position: static !important;
+    display: block !important; padding: 0 !important; margin: 0 !important;
+  }
+  /* Hide everything, then walk the slip's ancestors back into view. This is
+     the only approach that survives the app chrome, the phone page and the
+     preview frame without three separate rules. */
+  body * { visibility: hidden !important; }
+  #jws-slip, #jws-slip * { visibility: visible !important; }
+  #jws-slip {
+    position: absolute; left: 0; top: 0; width: 100%; max-width: none;
+    margin: 0; border: 0; border-top: 3px solid #000; box-shadow: none;
+  }
+  /* Decorative absolutes would otherwise hang below the slip and push a blank
+     sheet out of the printer: their positioning ancestor has just been reset. */
+  .fs-side::after, .fs-watermark, .fs-topbar, .fs-nav { display: none !important; }
+  #jws-slip .slip-token { border-color: #000; background: transparent; }
+  #jws-slip .slip-token b, #jws-slip .slip-token .lbl { color: #000; }
+  .fs-slipacts, .topbar, .tabs, .rail { display: none !important; }
+}

@@ -66,6 +66,58 @@ pub struct Question {
     pub image_caption: String,
     #[serde(default)]
     pub image_width: String,
+    #[serde(default)]
+    pub mask: String,
+    #[serde(default)]
+    pub pattern: String,
+    #[serde(default)]
+    pub pattern_message: String,
+    #[serde(default)]
+    pub conditions: Option<QuestionConditions>,
+}
+
+/// Conditional visibility. Rust never evaluates these — the two front ends do,
+/// and both send the resulting row. It models them so a form written by a newer
+/// build round-trips through `load_form` without losing its rules.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestionConditions {
+    #[serde(default)]
+    pub action: String,
+    #[serde(rename = "match", default)]
+    pub match_: String,
+    #[serde(default)]
+    pub rules: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReceiptSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub fields: Vec<String>,
+    #[serde(default = "yes")]
+    pub show_token: bool,
+    #[serde(default)]
+    pub token_prefix: String,
+    #[serde(default)]
+    pub note: String,
+}
+
+impl Default for ReceiptSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            title: String::new(),
+            fields: Vec::new(),
+            show_token: true,
+            token_prefix: String::new(),
+            note: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +143,19 @@ pub struct FormSettings {
     pub accent: String,
     #[serde(default)]
     pub accepting_responses: bool,
+    #[serde(default = "default_colorway")]
+    pub colorway: String,
+    #[serde(default)]
+    pub kiosk: bool,
+    #[serde(default)]
+    pub receipt: ReceiptSettings,
+    /// Optional endpoint POSTed after the response is safely on disk.
+    #[serde(default)]
+    pub webhook_url: String,
+}
+
+fn default_colorway() -> String {
+    "brand".to_string()
 }
 
 fn default_thanks() -> String {
@@ -121,6 +186,10 @@ impl Default for FormSettings {
             collect_timestamp: true,
             accent: default_accent(),
             accepting_responses: true,
+            colorway: default_colorway(),
+            kiosk: false,
+            receipt: ReceiptSettings::default(),
+            webhook_url: String::new(),
         }
     }
 }

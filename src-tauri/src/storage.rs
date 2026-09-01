@@ -7,6 +7,7 @@
 //!   settings.json                   app preferences (incl. a custom data folder)
 
 use crate::excel;
+use crate::webhook;
 use crate::models::{FormDef, FormSummary, ResponseTable};
 use anyhow::{anyhow, Result};
 use std::fs;
@@ -327,7 +328,18 @@ pub fn submit(form_id: &str, headers: &[String], values: &[String]) -> Result<us
             path.display()
         )
     })?;
-    Ok(excel::count_rows(&path))
+    let rows = excel::count_rows(&path);
+
+    // Only now, with the response safely on disk, is a copy sent anywhere else
+    // — on a thread nobody waits for. See webhook.rs for why.
+    if !form.settings.webhook_url.trim().is_empty() {
+        webhook::send(
+            &form.settings.webhook_url,
+            webhook::payload(form_id, &form.title, headers, values, rows),
+        );
+    }
+
+    Ok(rows)
 }
 
 pub fn responses(form_id: &str) -> Result<ResponseTable> {

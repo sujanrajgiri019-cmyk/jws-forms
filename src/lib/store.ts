@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import * as api from "./api";
-import { morphQuestion, newQuestion, uid } from "./questionTypes";
+import { morphQuestion, newQuestion, normalizeForm, uid } from "./questionTypes";
 import type { FormDef, FormSummary, Question, QuestionType } from "../types";
 
 export type View =
@@ -91,7 +91,7 @@ export const useApp = create<State>((set, get) => {
       // Don't lose an in-flight edit when navigating between screens.
       if (get().dirty) await get().save();
       if (get().form?.id === id) return;
-      const form = await api.getForm(id);
+      const form = normalizeForm(await api.getForm(id));
       set({
         form,
         selected: form.questions[0]?.id ?? null,

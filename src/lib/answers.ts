@@ -1,3 +1,4 @@
+import { compilePattern, maskComplete, maskExample } from "./mask";
 import type { Answers, AnswerValue, FormDef, Question } from "../types";
 
 /**
@@ -35,8 +36,19 @@ export function valuesFor(q: Question, a: Answers): string[] {
   return [v == null ? "" : String(v)];
 }
 
-/** The full row a submission turns into, in column order. */
-export function buildRow(form: FormDef, answers: Answers) {
+/**
+ * The full row a submission turns into, in column order.
+ *
+ * `hidden` holds the ids of questions a condition has taken off screen. Their
+ * columns are still written — as blanks — so the sheet keeps one shape whether
+ * or not a branch was taken. A filter written in week one still works in week
+ * twenty.
+ */
+export function buildRow(
+  form: FormDef,
+  answers: Answers,
+  hidden: Set<string> = new Set()
+) {
   const headers: string[] = [];
   const values: string[] = [];
 
@@ -46,13 +58,18 @@ export function buildRow(form: FormDef, answers: Answers) {
   }
   for (const q of form.questions) {
     if (isDisplayBlock(q.type)) continue;
-    headers.push(...headersFor(q));
-    values.push(...valuesFor(q, answers));
+    const cols = headersFor(q);
+    headers.push(...cols);
+    if (hidden.has(q.id)) values.push(...cols.map(() => ""));
+    else values.push(...valuesFor(q, answers));
   }
   return { headers, values };
 }
 
-/** All column names a form would produce — used to preview the sheet layout. */
+/**
+ * All column names a form would produce — used to preview the sheet layout.
+ * Conditional questions are included: their columns always exist.
+ */
 export function allHeaders(form: FormDef): string[] {
   const h: string[] = [];
   if (form.settings.collectTimestamp) h.push("Timestamp");
@@ -91,8 +108,20 @@ export function validate(q: Question, v: AnswerValue): string {
 
   const s = String(v);
   if (q.type === "email" && !EMAIL.test(s)) return "Enter a valid email address.";
-  if (q.type === "phone" && !PHONE.test(s)) return "Enter a valid phone number.";
-  if (q.type === "number" && Number.isNaN(Number(s))) return "Enter a number.";
+  if (q.type === "phone" && !q.mask && !PHONE.test(s)) return "Enter a valid phone number.";
+  if (q.type === "number" && !q.mask && Number.isNaN(Number(s)))
+    return "Enter a number.";
+
+  // A mask decides its own completeness — "9744" against 9999999999 is a
+  // half-typed number, not a wrong one, so say so plainly.
+  if (q.mask && !maskComplete(s, q.mask)) {
+    return `Finish this — it should look like ${maskExample(q.mask)}.`;
+  }
+
+  const re = compilePattern(q.pattern);
+  if (re && !re.test(s)) {
+    return q.patternMessage.trim() || "That does not look right.";
+  }
   return "";
 }
 
@@ -106,8 +135,14 @@ export function validateAll(form: FormDef, answers: Answers): Record<string, str
 }
 
 /** Fraction of answerable questions that have an answer, for the progress bar. */
-export function completion(form: FormDef, answers: Answers): number {
-  const qs = form.questions.filter((q) => !isDisplayBlock(q.type));
+export function completion(
+  form: FormDef,
+  answers: Answers,
+  hidden: Set<string> = new Set()
+): number {
+  const qs = form.questions.filter(
+    (q) => !isDisplayBlock(q.type) && !hidden.has(q.id)
+  );
   if (!qs.length) return 0;
   const done = qs.filter((q) => isAnswered(q, answers[q.id])).length;
   return done / qs.length;

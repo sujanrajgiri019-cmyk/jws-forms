@@ -5,15 +5,25 @@ import { Icon } from "../components/Icons";
 import { Button, Menu, Toggle, useToast } from "../components/ui";
 import { TYPES, TYPE_GROUPS, TYPE_MAP, isDisplay } from "../lib/questionTypes";
 import { humanSize, pictureFromClipboard, pictureFromDrop, readPicture } from "../lib/image";
+import {
+  OPERATORS_NEEDING_VALUE,
+  OPERATOR_LABEL,
+  candidateSources,
+  describeConditions,
+} from "../lib/logic";
+import { MASK_PRESETS, maskExample, presetFor } from "../lib/mask";
 import { useApp } from "../lib/store";
 import { OptionList } from "./OptionList";
-import type { Question, QuestionType } from "../types";
+import type { ConditionRule, Question, QuestionConditions, QuestionType } from "../types";
 
 export function QuestionCard({ q, index }: { q: Question; index: number }) {
-  const { selected, select, patchQuestion, changeType, removeQuestion, duplicateQuestion } =
+  const { form, selected, select, patchQuestion, changeType, removeQuestion, duplicateQuestion } =
     useApp();
   const isSel = selected === q.id;
   const meta = TYPE_MAP[q.type];
+  const [panel, setPanel] = useState<"none" | "logic" | "checks">("none");
+  const ruleCount = q.conditions?.rules.length ?? 0;
+  const hasChecks = !!(q.mask || q.pattern);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: q.id,
@@ -97,6 +107,29 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
           <div style={{ marginTop: 14 }}>
             <Body q={q} isSel={isSel} patch={patch} />
           </div>
+
+          {/* A rule is worth seeing at a glance even when the card is closed —
+              a question that vanishes for no visible reason is confusing. */}
+          {ruleCount > 0 && panel !== "logic" && (
+            <button
+              className="rulechip"
+              onClick={(e) => {
+                e.stopPropagation();
+                select(q.id);
+                setPanel("logic");
+              }}
+            >
+              <Icon name="sparkle" size={13} />
+              {form ? describeConditions(form, q) : "Conditional"}
+            </button>
+          )}
+
+          {isSel && panel === "logic" && <LogicPanel q={q} />}
+          {isSel && panel === "checks" && (
+            <div className="logicbox">
+              <ValidationPanel q={q} patch={patch} />
+            </div>
+          )}
         </>
       )}
 
@@ -121,6 +154,24 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
                 onChange={(v) => patch({ required: v })}
                 label="Required"
               />
+              <Button
+                size="sm"
+                icon="sparkle"
+                variant={panel === "logic" ? "primary" : undefined}
+                onClick={() => setPanel(panel === "logic" ? "none" : "logic")}
+              >
+                Logic{ruleCount ? ` (${ruleCount})` : ""}
+              </Button>
+              {TYPE_MAP[q.type].hasPlaceholder && (
+                <Button
+                  size="sm"
+                  icon="check"
+                  variant={panel === "checks" ? "primary" : undefined}
+                  onClick={() => setPanel(panel === "checks" ? "none" : "checks")}
+                >
+                  Format{hasChecks ? " ·" : ""}
+                </Button>
+              )}
               <Menu
                 trigger={(open) => <Button size="sm" icon="more" onClick={open} aria-label="More options" />}
               >
@@ -681,6 +732,281 @@ function PhotoPreview() {
       <Icon name="camera" size={28} />
       <b>The person filling the form uploads a photo here</b>
       <s>Saved beside the Excel file, with the file name written into the sheet</s>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- logic */
+
+/**
+ * The rule builder.
+ *
+ * Only questions *above* this one can be referenced. That constraint is what
+ * keeps the logic understandable: rules read top to bottom, the same direction
+ * the form is filled in, and a circular pair is impossible by construction.
+ */
+export function LogicPanel({ q }: { q: Question }) {
+  const { form, patchQuestion } = useApp();
+  if (!form) return null;
+
+  const sources = candidateSources(form, q.id);
+  const c = q.conditions;
+
+  function setConditions(next: QuestionConditions | undefined) {
+    patchQuestion(q.id, { conditions: next });
+  }
+
+  function addRule() {
+    const first = sources[0];
+    if (!first) return;
+    const rule: ConditionRule = {
+      fieldId: first.id,
+      operator: "equals",
+      value: first.options[0]?.label ?? "",
+    };
+    setConditions({
+      action: c?.action ?? "show",
+      match: c?.match ?? "all",
+      rules: [...(c?.rules ?? []), rule],
+    });
+  }
+
+  function patchRule(i: number, p: Partial<ConditionRule>) {
+    if (!c) return;
+    const rules = c.rules.map((r, n) => (n === i ? { ...r, ...p } : r));
+    setConditions({ ...c, rules });
+  }
+
+  function removeRule(i: number) {
+    if (!c) return;
+    const rules = c.rules.filter((_, n) => n !== i);
+    setConditions(rules.length ? { ...c, rules } : undefined);
+  }
+
+  if (!sources.length) {
+    return (
+      <div className="logicbox">
+        <p className="hint" style={{ margin: 0 }}>
+          Rules compare this question against an <b>earlier</b> one, so the first
+          question on a form can't have any. Move this one further down, or add a
+          question above it.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="logicbox">
+      {!c || !c.rules.length ? (
+        <div className="between">
+          <p className="hint" style={{ margin: 0 }}>
+            Always shown. Add a rule to show or hide it depending on an earlier
+            answer.
+          </p>
+          <Button size="sm" icon="plus" onClick={addRule}>
+            Add a rule
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="wrap-row" style={{ marginBottom: 12 }}>
+            <select
+              className="select"
+              style={{ width: 92 }}
+              value={c.action}
+              onChange={(e) => setConditions({ ...c, action: e.target.value as "show" | "hide" })}
+            >
+              <option value="show">Show</option>
+              <option value="hide">Hide</option>
+            </select>
+            <span style={{ color: "var(--ink-3)", fontSize: 14 }}>this question when</span>
+            <select
+              className="select"
+              style={{ width: 108 }}
+              value={c.match}
+              onChange={(e) => setConditions({ ...c, match: e.target.value as "all" | "any" })}
+            >
+              <option value="all">all rules</option>
+              <option value="any">any rule</option>
+            </select>
+            <span style={{ color: "var(--ink-3)", fontSize: 14 }}>match:</span>
+          </div>
+
+          <div className="stack" style={{ gap: 8 }}>
+            {c.rules.map((r, i) => {
+              const src = form.questions.find((x) => x.id === r.fieldId);
+              const needsValue = OPERATORS_NEEDING_VALUE.includes(r.operator);
+              const choices = src?.options ?? [];
+              return (
+                <div className="rulerow" key={i}>
+                  <select
+                    className="select"
+                    value={r.fieldId}
+                    onChange={(e) => patchRule(i, { fieldId: e.target.value, value: "" })}
+                  >
+                    {sources.map((s, n) => (
+                      <option key={s.id} value={s.id}>
+                        {n + 1}. {s.title.trim() || "Untitled question"}
+                      </option>
+                    ))}
+                    {!sources.some((s) => s.id === r.fieldId) && (
+                      <option value={r.fieldId}>(deleted question)</option>
+                    )}
+                  </select>
+
+                  <select
+                    className="select"
+                    value={r.operator}
+                    onChange={(e) =>
+                      patchRule(i, { operator: e.target.value as ConditionRule["operator"] })
+                    }
+                  >
+                    {(Object.keys(OPERATOR_LABEL) as (keyof typeof OPERATOR_LABEL)[]).map((op) => (
+                      <option key={op} value={op}>
+                        {OPERATOR_LABEL[op]}
+                      </option>
+                    ))}
+                  </select>
+
+                  {needsValue ? (
+                    choices.length ? (
+                      <select
+                        className="select"
+                        value={typeof r.value === "string" ? r.value : r.value[0] ?? ""}
+                        onChange={(e) => patchRule(i, { value: e.target.value })}
+                      >
+                        <option value="">Choose an option…</option>
+                        {choices.map((o) => (
+                          <option key={o.id} value={o.label}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        className="input"
+                        placeholder="Value"
+                        value={typeof r.value === "string" ? r.value : r.value.join(", ")}
+                        onChange={(e) => patchRule(i, { value: e.target.value })}
+                      />
+                    )
+                  ) : (
+                    <span className="rulespacer" />
+                  )}
+
+                  <Button
+                    size="sm"
+                    icon="x"
+                    aria-label="Remove this rule"
+                    onClick={() => removeRule(i)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="between" style={{ marginTop: 12 }}>
+            <p className="hint" style={{ margin: 0 }}>{describeConditions(form, q)}</p>
+            <div className="wrap-row">
+              <Button size="sm" icon="plus" onClick={addRule}>
+                Add a rule
+              </Button>
+              <Button size="sm" variant="danger" icon="trash" onClick={() => setConditions(undefined)}>
+                Clear
+              </Button>
+            </div>
+          </div>
+
+          <p className="hint" style={{ marginTop: 10 }}>
+            A hidden question keeps whatever was typed into it — change the answer
+            back and it returns filled in. Its Excel column is always written, blank
+            when the question was skipped, so the sheet keeps one shape.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------- masks & patterns */
+
+export function ValidationPanel({
+  q,
+  patch,
+}: {
+  q: Question;
+  patch: (p: Partial<Question>) => void;
+}) {
+  const preset = presetFor(q.mask);
+  const custom = !!q.mask && !preset;
+  const [showCustom, setShowCustom] = useState(custom);
+
+  return (
+    <div className="stack" style={{ gap: 14 }}>
+      <div>
+        <label className="label">Typing format</label>
+        <div className="wrap-row">
+          <select
+            className="select"
+            style={{ maxWidth: 220 }}
+            value={showCustom ? "custom" : preset?.id ?? ""}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id === "custom") {
+                setShowCustom(true);
+                return;
+              }
+              setShowCustom(false);
+              patch({ mask: MASK_PRESETS.find((p) => p.id === id)?.mask ?? "" });
+            }}
+          >
+            {MASK_PRESETS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          {showCustom && (
+            <input
+              className="input"
+              style={{ maxWidth: 190 }}
+              placeholder="e.g. AAA-9999"
+              value={q.mask}
+              onChange={(e) => patch({ mask: e.target.value })}
+            />
+          )}
+          {q.mask && (
+            <span className="pill">
+              Looks like {maskExample(q.mask)}
+            </span>
+          )}
+        </div>
+        <p className="hint" style={{ marginTop: 8 }}>
+          <b>9</b> is a digit, <b>A</b> a letter, <b>*</b> either. Anything else is
+          punctuation the form types in as they go.
+        </p>
+      </div>
+
+      <div>
+        <label className="label">Extra check (optional)</label>
+        <input
+          className="input"
+          placeholder="A pattern, e.g.  ^9[78][0-9]{8}$"
+          value={q.pattern}
+          onChange={(e) => patch({ pattern: e.target.value })}
+        />
+        <input
+          className="input"
+          style={{ marginTop: 8 }}
+          placeholder="What to say when it fails — e.g. Mobile numbers start 97 or 98"
+          value={q.patternMessage}
+          onChange={(e) => patch({ patternMessage: e.target.value })}
+        />
+        <p className="hint" style={{ marginTop: 8 }}>
+          Runs after the built-in check. A pattern the app can't read is ignored
+          rather than blocking anyone.
+        </p>
+      </div>
     </div>
   );
 }

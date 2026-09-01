@@ -21,6 +21,7 @@ import { QuestionCard } from "../builder/QuestionCard";
 import { TYPES, TYPE_GROUPS, isDisplay } from "../lib/questionTypes";
 import { allHeaders } from "../lib/answers";
 import { INSTITUTION_LIST } from "../lib/brand";
+import { COLORWAYS } from "../lib/colorway";
 import { useApp } from "../lib/store";
 import * as api from "../lib/api";
 import type { FormStyle, QuestionType, TunnelStatus } from "../types";
@@ -212,13 +213,16 @@ export default function Builder({ id }: { id: string }) {
             <>
               <InstitutionPanel />
               <StylePicker />
+              <ColorwayPanel />
             </>
           )}
 
           {tab === "settings" && (
             <>
               <FormSettingsPanel />
+              <ReceiptPanel />
               <DataFolderPanel />
+              <WebhookPanel />
               <ColumnsPanel columns={allHeaders(form)} />
             </>
           )}
@@ -355,6 +359,17 @@ const STYLES: { id: FormStyle; name: string; note: string; thumb: JSX.Element }[
       <div className="th-cov">
         <div className="top"><i /><em /></div>
         <div className="bot"><s /><s style={{ width: "70%" }} /></div>
+      </div>
+    ),
+  },
+  {
+    id: "split",
+    name: "Split screen",
+    note: "A poster that stays put beside the questions. Built for a kiosk.",
+    thumb: (
+      <div className="th-spl">
+        <div className="l"><i /><em /></div>
+        <div className="r"><s /><u /><s style={{ width: "70%" }} /><u /></div>
       </div>
     ),
   },
@@ -675,6 +690,203 @@ function PublishPanel({ id }: { id: string }) {
           {busy ? "Publishing…" : "Publish & get link"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+
+/* ==========================================================================
+   COLOURWAY + KIOSK
+   ========================================================================== */
+
+function ColorwayPanel() {
+  const { form, patchSettings } = useApp();
+  if (!form) return null;
+  const current = form.settings.colorway ?? "brand";
+  return (
+    <div className="card pad">
+      <h3>Accent colour</h3>
+      <p className="hint" style={{ marginTop: 3 }}>
+        The mark, the address and the layout never change — only the accent. It
+        helps when School, +2 and College are collecting at three desks in the
+        same hall.
+      </p>
+      <div className="cwpick" style={{ marginTop: 16 }}>
+        {COLORWAYS.map((c) => (
+          <button
+            key={c.id}
+            className={`cwopt${current === c.id ? " on" : ""}`}
+            onClick={() => patchSettings({ colorway: c.id })}
+            aria-pressed={current === c.id}
+          >
+            <span className="dot" style={{ background: c.swatch }} />
+            <span>
+              <b>{c.label}</b>
+              <s>{c.note}</s>
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--hair)" }}>
+        <Row
+          title="High-contrast kiosk mode"
+          note="A dark, high-contrast form for an unattended counter laptop under strip lights. Only the form changes — the app stays as it is."
+        >
+          <Toggle
+            checked={!!form.settings.kiosk}
+            onChange={(v) => patchSettings({ kiosk: v })}
+            label=""
+          />
+        </Row>
+      </div>
+    </div>
+  );
+}
+
+/* ==========================================================================
+   PRINTABLE SLIP
+   ========================================================================== */
+
+function ReceiptPanel() {
+  const { form, patchSettings } = useApp();
+  if (!form) return null;
+  const r = form.settings.receipt;
+  const askable = form.questions.filter((q) => !isDisplay(q.type));
+
+  const setR = (p: Partial<typeof r>) => patchSettings({ receipt: { ...r, ...p } });
+
+  function toggleField(id: string) {
+    setR({
+      fields: r.fields.includes(id)
+        ? r.fields.filter((f) => f !== id)
+        : [...r.fields, id],
+    });
+  }
+
+  return (
+    <div className="card pad">
+      <Row
+        title="Printable slip after submitting"
+        note="Hands the person a numbered acknowledgement they can print or save as a PDF. Useful at an admission counter."
+      >
+        <Toggle checked={r.enabled} onChange={(v) => setR({ enabled: v })} label="" />
+      </Row>
+
+      {r.enabled && (
+        <div className="stack" style={{ marginTop: 18, gap: 18 }}>
+          <div>
+            <label className="label">Heading on the slip</label>
+            <input
+              className="input"
+              placeholder={form.title || "Acknowledgement"}
+              value={r.title}
+              onChange={(e) => setR({ title: e.target.value })}
+            />
+          </div>
+
+          <Row
+            title="Print a token number"
+            note="The row number in the workbook — so token 0040 is row 40, and the office can find it instantly."
+          >
+            <Toggle checked={r.showToken} onChange={(v) => setR({ showToken: v })} label="" />
+          </Row>
+
+          {r.showToken && (
+            <div style={{ maxWidth: 240 }}>
+              <label className="label">Letters in front of the number</label>
+              <input
+                className="input"
+                placeholder="e.g. ADM-"
+                value={r.tokenPrefix}
+                onChange={(e) => setR({ tokenPrefix: e.target.value })}
+              />
+              <p className="hint" style={{ marginTop: 6 }}>
+                Gives {r.tokenPrefix || ""}0042
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="label">Which answers to print</label>
+            {askable.length === 0 ? (
+              <p className="hint">Add a question first.</p>
+            ) : (
+              <div className="slipfields">
+                {askable.map((q) => (
+                  <label
+                    key={q.id}
+                    className={`slipfield${r.fields.includes(q.id) ? " on" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={r.fields.includes(q.id)}
+                      onChange={() => toggleField(q.id)}
+                    />
+                    <span className="truncate">{q.title.trim() || "Untitled question"}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="hint" style={{ marginTop: 8 }}>
+              Keep it short — a name, a contact number and what they applied for is
+              usually the whole slip. An answer left blank is left off.
+            </p>
+          </div>
+
+          <div>
+            <label className="label">Small print at the foot</label>
+            <input
+              className="input"
+              value={r.note}
+              onChange={(e) => setR({ note: e.target.value })}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ==========================================================================
+   WEBHOOK
+   ========================================================================== */
+
+function WebhookPanel() {
+  const { form, patchSettings } = useApp();
+  const [touched, setTouched] = useState(false);
+  if (!form) return null;
+  const url = form.settings.webhookUrl ?? "";
+  const bad = touched && url.trim() !== "" && !/^https?:\/\/\S+$/i.test(url.trim());
+
+  return (
+    <div className="card pad">
+      <h3>Send a copy somewhere else (optional)</h3>
+      <p className="hint" style={{ marginTop: 3 }}>
+        Every response is POSTed as JSON to this address as well as being written
+        to Excel. Use it to feed a Google Sheet, a school portal or a messaging
+        bot.
+      </p>
+      <input
+        className="input"
+        style={{ marginTop: 14 }}
+        placeholder="https://…"
+        value={url}
+        onBlur={() => setTouched(true)}
+        onChange={(e) => patchSettings({ webhookUrl: e.target.value })}
+      />
+      {bad && (
+        <p className="error" style={{ marginTop: 8 }}>
+          <Icon name="alert" size={15} />
+          That should start with https:// — leave it empty to switch this off.
+        </p>
+      )}
+      <p className="hint" style={{ marginTop: 12 }}>
+        The Excel file is written first and the POST happens afterwards, in the
+        background. A slow, blocked or offline endpoint never delays a person at
+        the counter and never fails their submission — the response is safely on
+        disk either way.
+      </p>
     </div>
   );
 }

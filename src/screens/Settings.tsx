@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { Icon } from "../components/Icons";
 import { Logo } from "../components/Logo";
 import { Button, Spinner, useToast } from "../components/ui";
@@ -10,9 +11,14 @@ export default function Settings() {
   const [checking, setChecking] = useState(false);
   const [update, setUpdate] = useState<api.UpdateInfo | null>(null);
   const [pct, setPct] = useState<number | null>(null);
+  const [version, setVersion] = useState("");
+  const [problem, setProblem] = useState("");
 
   useEffect(() => {
     void api.dataDir().then(setDir);
+    // Read the real number off the running build — a hard-coded one goes stale
+    // the moment a release ships.
+    void getVersion().then(setVersion).catch(() => setVersion(""));
   }, []);
 
   async function changeFolder() {
@@ -25,12 +31,15 @@ export default function Settings() {
 
   async function check() {
     setChecking(true);
+    setProblem("");
     try {
       const info = await api.checkForUpdate();
       setUpdate(info);
       if (!info.available) toast("You're on the latest version");
     } catch (e) {
-      toast(`Could not check for updates: ${e}`, "bad");
+      // Shown in place, not as a toast that vanishes: this is the one message
+      // someone needs to read twice and act on.
+      setProblem(e instanceof Error ? e.message : String(e));
     } finally {
       setChecking(false);
     }
@@ -85,6 +94,12 @@ export default function Settings() {
               )}
               {pct !== null && <span style={{ color: "var(--ink-3)" }}>Downloading… {pct}%</span>}
             </div>
+            {problem && (
+              <p className="error" style={{ marginTop: 14 }}>
+                <Icon name="alert" size={15} />
+                {problem}
+              </p>
+            )}
             {update?.available && update.notes && (
               <div
                 className="card pad"
@@ -109,7 +124,7 @@ export default function Settings() {
             <div className="grow">
               <h3>JWS Forms</h3>
               <p className="hint" style={{ marginTop: 2 }}>
-                Version 0.1.0 · Built for JWS · Runs entirely offline
+                {version ? `Version ${version} · ` : ""}Built for JWS · Runs entirely offline
               </p>
             </div>
             <span className="pill">

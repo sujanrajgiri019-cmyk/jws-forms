@@ -14,6 +14,7 @@ const STYLE_LABEL: Record<FormStyle, string> = {
   letterhead: "Letterhead",
   cards: "Cards",
   cover: "Cover",
+  split: "Split screen",
 };
 
 export default function Home() {

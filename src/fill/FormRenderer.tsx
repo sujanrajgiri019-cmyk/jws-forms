@@ -2,8 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icons";
 import { Letterhead } from "../components/Logo";
 import { institutionOf } from "../lib/brand";
-import { completion, isDisplayBlock, validate } from "../lib/answers";
+import { isDisplayBlock, validate } from "../lib/answers";
+import { useFormLogic } from "../lib/useFormLogic";
+import { colorwayClass } from "../lib/colorway";
 import { Field } from "./Field";
+import { Receipt } from "./Receipt";
 import type { Answers, AnswerValue, FormDef, Question } from "../types";
 
 /**
@@ -23,6 +26,7 @@ export function FormRenderer({
   sending = false,
   done = false,
   preview = false,
+  token = "",
 }: {
   form: FormDef;
   answers: Answers;
@@ -33,20 +37,23 @@ export function FormRenderer({
   sending?: boolean;
   done?: boolean;
   preview?: boolean;
+  /** Queue number for the printable slip, from the submission. */
+  token?: string;
 }) {
   const style = form.settings.style;
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [step, setStep] = useState(0);
   const root = useRef<HTMLDivElement>(null);
 
-  const answerable = useMemo(
-    () => form.questions.filter((q) => !isDisplayBlock(q.type)),
-    [form.questions]
-  );
+  // Conditional logic. Everything downstream — numbering, progress, validation,
+  // the submitted row — reads from this rather than from form.questions.
+  const logic = useFormLogic(form, answers);
+  const answerable = logic.answerable;
 
-  // Focus mode walks every block, sections included — a section becomes its
-  // own "here comes the next part" screen.
-  const pages = form.questions;
+  // Focus mode walks every visible block, sections included — a section becomes
+  // its own "here comes the next part" screen. Hidden blocks are skipped, so a
+  // branch nobody took never costs a keystroke.
+  const pages = logic.visible;
   useEffect(() => {
     setStep(0);
     setErrors({});
@@ -66,11 +73,7 @@ export function FormRenderer({
   );
 
   function submitAll() {
-    const errs: Record<string, string> = {};
-    for (const q of form.questions) {
-      const m = validate(q, answers[q.id]);
-      if (m) errs[q.id] = m;
-    }
+    const errs = logic.validateAll();
     setErrors(errs);
     if (Object.keys(errs).length) {
       const first = form.questions.find((q) => errs[q.id]);
@@ -95,13 +98,21 @@ export function FormRenderer({
     else submitAll();
   }
 
-  const pct = Math.round(completion(form, answers) * 100);
+  const pct = Math.round(logic.progress * 100);
   const closed = !form.settings.acceptingResponses;
-  const cls = `fs fs-${style}`;
+  const cls = [
+    "fs",
+    `fs-${style}`,
+    colorwayClass(form.settings),
+    form.settings.kiosk ? "fs-kiosk" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   /* ------------------------------------------------------------ done state */
 
   if (done) {
+    const slip = form.settings.receipt.enabled;
     const body = (
       <div className="fs-done">
         <span className="tick">
@@ -109,7 +120,24 @@ export function FormRenderer({
         </span>
         <h2 className="dsp">Response recorded</h2>
         <p>{form.settings.confirmationMessage}</p>
-        {form.settings.allowMultiple && onAnother && (
+
+        {slip && (
+          <>
+            <Receipt form={form} answers={answers} token={token} hidden={logic.hidden} />
+            <div className="fs-slipacts">
+              <button className="fs-submit" onClick={() => window.print()}>
+                <Icon name="file" size={17} /> Print / Save as PDF
+              </button>
+              {form.settings.allowMultiple && onAnother && (
+                <button className="fs-clear" onClick={onAnother}>
+                  Next person
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {!slip && form.settings.allowMultiple && onAnother && (
           <button className="fs-submit" onClick={onAnother} style={{ marginTop: 14 }}>
             Submit another response
           </button>
@@ -118,7 +146,9 @@ export function FormRenderer({
     );
     return (
       <div className={cls} ref={root}>
-        {style === "panel" && <PanelSide form={form} answers={answers} pct={100} />}
+        {(style === "panel" || style === "split") && (
+          <PanelSide form={form} answers={answers} pct={100} logicHidden={logic.hidden} />
+        )}
         <div className="fs-main">{body}</div>
       </div>
     );
@@ -130,6 +160,9 @@ export function FormRenderer({
     return (
       <FocusFlow
         form={form}
+        pages={pages}
+        numberOf={logic.numberOf}
+        total={answerable.length}
         answers={answers}
         onChange={change}
         errors={errors}
@@ -140,19 +173,21 @@ export function FormRenderer({
         preview={preview}
         closed={closed}
         pct={pct}
+        cls={cls}
       />
     );
   }
 
   /* ------------------------------------------- 01 — REGISTER / 02 — PANEL */
 
-  let n = 0;
   return (
     <div className={cls} ref={root}>
-      {style === "panel" && <PanelSide form={form} answers={answers} pct={pct} />}
+      {(style === "panel" || style === "split") && (
+        <PanelSide form={form} answers={answers} pct={pct} logicHidden={logic.hidden} />
+      )}
 
       <div className="fs-main">
-        {style !== "panel" && (
+        {style !== "panel" && style !== "split" && (
           <header className="fs-head">
             <div className="fs-brand">
               {/* Cover sets the letterhead on orange, so the artwork needs a
@@ -186,7 +221,7 @@ export function FormRenderer({
         )}
 
         <div className="fs-flow">
-          {form.questions.map((q) => {
+          {logic.visible.map((q) => {
             if (q.type === "section") {
               return (
                 <section className="fs-section" key={q.id}>
@@ -196,12 +231,11 @@ export function FormRenderer({
               );
             }
             if (q.type === "image") return <PictureBlock q={q} key={q.id} />;
-            n += 1;
             return (
               <QuestionBlock
                 key={q.id}
                 q={q}
-                index={n}
+                index={logic.numberOf(q.id)}
                 value={answers[q.id]}
                 error={errors[q.id]}
                 onChange={(v) => change(q.id, v)}
@@ -286,10 +320,12 @@ function PanelSide({
   form,
   answers,
   pct,
+  logicHidden,
 }: {
   form: FormDef;
   answers: Answers;
   pct: number;
+  logicHidden: Set<string>;
 }) {
   // Split the form at its section headings so the wall can show real progress
   // through real parts, not invented steps.
@@ -297,6 +333,7 @@ function PanelSide({
     const out: { title: string; qs: Question[] }[] = [];
     let cur: { title: string; qs: Question[] } = { title: "Questions", qs: [] };
     for (const q of form.questions) {
+      if (logicHidden.has(q.id)) continue;
       if (q.type === "section") {
         if (cur.qs.length) out.push(cur);
         cur = { title: q.title || "Section", qs: [] };
@@ -304,7 +341,7 @@ function PanelSide({
     }
     if (cur.qs.length) out.push(cur);
     return out;
-  }, [form.questions]);
+  }, [form.questions, logicHidden]);
 
   const answeredIn = (qs: Question[]) =>
     qs.filter((q) => {
@@ -359,6 +396,9 @@ function PanelSide({
 
 function FocusFlow({
   form,
+  pages,
+  numberOf,
+  total,
   answers,
   onChange,
   errors,
@@ -369,8 +409,13 @@ function FocusFlow({
   preview,
   closed,
   pct,
+  cls,
 }: {
   form: FormDef;
+  /** Visible blocks only — a hidden branch never becomes a screen. */
+  pages: Question[];
+  numberOf: (id: string) => number;
+  total: number;
   answers: Answers;
   onChange: (id: string, v: AnswerValue) => void;
   errors: Record<string, string>;
@@ -381,24 +426,10 @@ function FocusFlow({
   preview: boolean;
   closed: boolean;
   pct: number;
+  cls: string;
 }) {
-  const pages = form.questions;
-  const q = pages[step];
-  const last = step === pages.length - 1;
-
-  const numberOf = useMemo(() => {
-    const map: Record<string, number> = {};
-    let n = 0;
-    for (const item of form.questions) {
-      if (!isDisplayBlock(item.type)) {
-        n += 1;
-        map[item.id] = n;
-      }
-    }
-    return map;
-  }, [form.questions]);
-
-  const total = Object.keys(numberOf).length;
+  const q = pages[Math.min(step, Math.max(pages.length - 1, 0))];
+  const last = step >= pages.length - 1;
 
   // Keyboard: Enter moves on, a letter picks that option.
   useEffect(() => {
@@ -436,7 +467,7 @@ function FocusFlow({
   if (!q) return null;
 
   return (
-    <div className="fs fs-focus">
+    <div className={cls}>
       <div className="fs-watermark">
         <img src={institutionOf(form.settings.institution).logo} alt="" />
       </div>
@@ -476,7 +507,7 @@ function FocusFlow({
           ) : (
             <section className="fs-q" key={q.id} data-q={q.id}>
               <div className="fs-n">
-                Question {numberOf[q.id]} of {total}
+                Question {numberOf(q.id)} of {total}
               </div>
               <h3 className="fs-qtitle">
                 {q.title || "Untitled question"}

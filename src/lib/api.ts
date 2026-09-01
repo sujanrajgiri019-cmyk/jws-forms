@@ -217,19 +217,59 @@ export interface UpdateInfo {
   notes: string;
 }
 
+/**
+ * Ask GitHub whether there is a newer signed build.
+ *
+ * The failures here are all ordinary and all look identical to a user staring
+ * at a red toast, so each one is translated into something they can act on.
+ * The most common by far is the first: the very first release has not been
+ * published yet, and GitHub answers the "latest release" URL with a 404.
+ */
 export async function checkForUpdate(): Promise<UpdateInfo> {
   if (!inTauri) return { available: false, version: "", notes: "" };
   const { check } = await import("@tauri-apps/plugin-updater");
-  const up = await check();
-  if (!up) return { available: false, version: "", notes: "" };
-  return { available: true, version: up.version, notes: up.body ?? "" };
+  try {
+    const up = await check();
+    if (!up) return { available: false, version: "", notes: "" };
+    return { available: true, version: up.version, notes: up.body ?? "" };
+  } catch (e) {
+    throw new Error(updateErrorText(e));
+  }
+}
+
+function updateErrorText(e: unknown): string {
+  const raw = String((e as { message?: string })?.message ?? e);
+  const low = raw.toLowerCase();
+
+  if (low.includes("404") || low.includes("not found")) {
+    return "No release has been published yet. Once a version is tagged on GitHub and the build finishes, updates will appear here.";
+  }
+  if (low.includes("signature") || low.includes("minisign") || low.includes("verify")) {
+    return "That update was not signed with this school's key, so it was refused. Rebuild the release with the JWS signing key.";
+  }
+  if (
+    low.includes("network") ||
+    low.includes("dns") ||
+    low.includes("timed out") ||
+    low.includes("timeout") ||
+    low.includes("connect") ||
+    low.includes("sending request")
+  ) {
+    return "Could not reach GitHub. This PC needs an internet connection to check for updates — everything else in JWS Forms works offline.";
+  }
+  return `Could not check for updates. ${raw}`;
 }
 
 export async function installUpdate(onProgress?: (pct: number) => void): Promise<void> {
   if (!inTauri) return;
   const { check } = await import("@tauri-apps/plugin-updater");
   const { relaunch } = await import("@tauri-apps/plugin-process");
-  const up = await check();
+  let up;
+  try {
+    up = await check();
+  } catch (e) {
+    throw new Error(updateErrorText(e));
+  }
   if (!up) return;
 
   let total = 0;
