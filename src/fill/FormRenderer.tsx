@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icons";
-import { Logo } from "../components/Logo";
-import { completion, validate } from "../lib/answers";
+import { Letterhead } from "../components/Logo";
+import { institutionOf } from "../lib/brand";
+import { completion, isDisplayBlock, validate } from "../lib/answers";
 import { Field } from "./Field";
 import type { Answers, AnswerValue, FormDef, Question } from "../types";
 
@@ -39,7 +40,7 @@ export function FormRenderer({
   const root = useRef<HTMLDivElement>(null);
 
   const answerable = useMemo(
-    () => form.questions.filter((q) => q.type !== "section"),
+    () => form.questions.filter((q) => !isDisplayBlock(q.type)),
     [form.questions]
   );
 
@@ -83,7 +84,7 @@ export function FormRenderer({
 
   function advance() {
     const q = pages[step];
-    if (q && q.type !== "section") {
+    if (q && !isDisplayBlock(q.type)) {
       const m = validate(q, answers[q.id]);
       if (m) {
         setErrors({ [q.id]: m });
@@ -151,13 +152,17 @@ export function FormRenderer({
       {style === "panel" && <PanelSide form={form} answers={answers} pct={pct} />}
 
       <div className="fs-main">
-        {style === "register" && (
+        {style !== "panel" && (
           <header className="fs-head">
             <div className="fs-brand">
-              <span className="fs-logo">
-                <Logo variant="shield" fluid />
-              </span>
-              <span>JWS</span>
+              {/* Cover sets the letterhead on orange, so the artwork needs a
+                  white plate behind it and light text beside it. */}
+              <Letterhead
+                institution={form.settings.institution}
+                height={style === "cover" ? 58 : 68}
+                plate={style === "cover"}
+                onDark={style === "cover"}
+              />
             </div>
             <h1 className="dsp">{form.title || "Untitled form"}</h1>
             {form.description && <p className="fs-desc">{form.description}</p>}
@@ -170,7 +175,7 @@ export function FormRenderer({
         )}
 
         {closed && (
-          <div style={{ padding: style === "register" ? "24px 60px 0" : "0 0 8px" }}>
+          <div style={{ padding: style === "panel" ? "0 0 8px" : "24px 0 0" }}>
             <div className="fs-closed">
               <Icon name="alert" size={19} />
               <span>
@@ -190,6 +195,7 @@ export function FormRenderer({
                 </section>
               );
             }
+            if (q.type === "image") return <PictureBlock q={q} key={q.id} />;
             n += 1;
             return (
               <QuestionBlock
@@ -218,6 +224,19 @@ export function FormRenderer({
         </footer>
       </div>
     </div>
+  );
+}
+
+/* ---------------------------------------------------------- picture block */
+
+/** A picture the form shows. It asks nothing, so it owns no Excel column. */
+function PictureBlock({ q }: { q: Question }) {
+  if (!q.image) return null;
+  return (
+    <figure className={`fs-figure ${q.imageWidth || "medium"}`}>
+      <img src={q.image} alt={q.imageCaption || q.title || ""} />
+      {q.imageCaption && <figcaption className="fs-figcap">{q.imageCaption}</figcaption>}
+    </figure>
   );
 }
 
@@ -281,7 +300,7 @@ function PanelSide({
       if (q.type === "section") {
         if (cur.qs.length) out.push(cur);
         cur = { title: q.title || "Section", qs: [] };
-      } else cur.qs.push(q);
+      } else if (q.type !== "image") cur.qs.push(q);
     }
     if (cur.qs.length) out.push(cur);
     return out;
@@ -299,10 +318,8 @@ function PanelSide({
 
   return (
     <aside className="fs-side">
-      <span className="fs-logo">
-        <Logo variant="shield" fluid />
-      </span>
-      <h1 className="dsp">{form.title || "Untitled form"}</h1>
+      <Letterhead institution={form.settings.institution} height={56} plate onDark />
+      <h1 className="dsp" style={{ marginTop: 26 }}>{form.title || "Untitled form"}</h1>
       {form.description && <p className="fs-desc">{form.description}</p>}
 
       {groups.length > 1 && (
@@ -373,7 +390,7 @@ function FocusFlow({
     const map: Record<string, number> = {};
     let n = 0;
     for (const item of form.questions) {
-      if (item.type !== "section") {
+      if (!isDisplayBlock(item.type)) {
         n += 1;
         map[item.id] = n;
       }
@@ -421,7 +438,7 @@ function FocusFlow({
   return (
     <div className="fs fs-focus">
       <div className="fs-watermark">
-        <Logo variant="shield" fluid />
+        <img src={institutionOf(form.settings.institution).logo} alt="" />
       </div>
 
       <div className="fs-topbar">
@@ -430,10 +447,7 @@ function FocusFlow({
 
       <div className="fs-crumb">
         <span className="l">
-          <span className="fs-logo">
-            <Logo variant="shield" fluid />
-          </span>
-          <b>JWS</b>
+          <Letterhead institution={form.settings.institution} height={34} compact />
         </span>
         <span className="lbl">{form.title || "Untitled form"}</span>
       </div>
@@ -453,6 +467,11 @@ function FocusFlow({
             <section className="fs-section" key={q.id}>
               <h2 className="dsp">{q.title || "Next section"}</h2>
               {q.description && <p className="fs-help">{q.description}</p>}
+            </section>
+          ) : q.type === "image" ? (
+            <section className="fs-section" key={q.id}>
+              {q.title && <h2 className="dsp">{q.title}</h2>}
+              <PictureBlock q={q} />
             </section>
           ) : (
             <section className="fs-q" key={q.id} data-q={q.id}>

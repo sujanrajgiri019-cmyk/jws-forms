@@ -334,7 +334,8 @@
   position: absolute; right: -130px; bottom: -200px; width: 460px;
   color: var(--o); opacity: .05; pointer-events: none; z-index: 0; line-height: 0;
 }
-.fs-focus .fs-watermark svg { width: 100%; height: auto; display: block; }
+.fs-focus .fs-watermark svg,
+.fs-focus .fs-watermark img { width: 100%; height: auto; display: block; }
 
 .fs-focus .fs-topbar { height: 4px; background: var(--o-ll); flex: none; }
 .fs-focus .fs-topbar i { display: block; height: 100%; background: var(--o); transition: width .4s var(--ease); }
@@ -470,3 +471,285 @@
   .fs-focus .fs-crumb { padding: 14px 20px; }
   .fs-panel .fs-scale label { padding: 11px 14px; }
 }
+
+/* ==========================================================================
+   04 — LETTERHEAD
+   Official school stationery. Full letterhead, a double rule, numbered
+   questions in a formal list, and a footer bar carrying the address. This is
+   the one that looks right printed and filed.
+   ========================================================================== */
+
+.fs-letterhead .fs-main { max-width: 880px; margin: 0 auto; width: 100%; }
+.fs-letterhead .fs-head {
+  padding: 52px 64px 26px; text-align: center;
+  border-bottom: 3px double var(--o); position: relative;
+}
+.fs-letterhead .fs-head .letterhead { align-items: center; }
+.fs-letterhead .fs-head .lh-contact { align-items: center; }
+.fs-letterhead .fs-head h1 {
+  font-size: clamp(24px, 3.2vw, 32px); font-weight: 800; margin-top: 26px;
+  text-transform: uppercase; letter-spacing: .01em;
+}
+.fs-letterhead .fs-head h1::after {
+  content: ""; display: block; width: 70px; height: 3px;
+  background: var(--o); margin: 14px auto 0;
+}
+.fs-letterhead .fs-desc { margin-top: 16px; color: var(--k2); max-width: 62ch; margin-inline: auto; white-space: pre-wrap; }
+.fs-letterhead .fs-headnote { margin-top: 16px; color: var(--k3); font-size: 13px; }
+
+.fs-letterhead .fs-flow { padding: 12px 64px 0; }
+.fs-letterhead .fs-q { display: grid; grid-template-columns: 46px 1fr; gap: 4px; padding: 22px 0; border-bottom: 1px dotted var(--ln2); }
+.fs-letterhead .fs-q.invalid { background: var(--o-l); }
+.fs-letterhead .fs-n {
+  font-family: var(--display); font-stretch: 116%; font-weight: 700; font-size: 16px;
+  color: var(--k2); padding-top: 1px; font-variant-numeric: tabular-nums;
+}
+.fs-letterhead .fs-n::after { content: "."; }
+.fs-letterhead .fs-qtitle { font-family: var(--body); font-weight: 600; font-size: 16px; }
+.fs-letterhead .fs-field { margin-top: 12px; }
+.fs-letterhead .fs-input, .fs-letterhead .fs-select {
+  border: 0; border-bottom: 1px solid var(--k3); border-radius: 0; padding: 6px 2px 7px;
+  max-width: 440px; background: transparent;
+}
+.fs-letterhead .fs-textarea { border: 1px solid var(--ln2); border-radius: 3px; padding: 10px 12px; }
+.fs-letterhead .fs-input:focus, .fs-letterhead .fs-select:focus, .fs-letterhead .fs-textarea:focus {
+  outline: none; border-color: var(--o); border-bottom-width: 2px;
+}
+.fs-letterhead .fs-choices { flex-direction: row; flex-wrap: wrap; gap: 6px 26px; }
+.fs-letterhead .fs-choice { width: auto; padding: 5px 0; gap: 9px; }
+.fs-letterhead .fs-mark {
+  width: 15px; height: 15px; border: 1px solid var(--k3); border-radius: 2px; flex: none;
+}
+.fs-letterhead .fs-choice.on .fs-mark { background: var(--o); border-color: var(--o); box-shadow: inset 0 0 0 2.5px #fff; }
+.fs-letterhead .fs-section { padding: 30px 64px 8px; }
+.fs-letterhead .fs-section h2 {
+  font-size: 15px; text-transform: uppercase; letter-spacing: .14em;
+  color: var(--o-dd); border-bottom: 1px solid var(--ln2); padding-bottom: 8px;
+}
+.fs-letterhead .fs-foot {
+  padding: 34px 64px 30px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+}
+.fs-letterhead .fs-submit { background: var(--o); color: #fff; padding: 13px 36px; border-radius: 3px; font-size: 15px; }
+.fs-letterhead .fs-submit:hover { background: var(--o-dd); }
+.fs-letterhead .fs-main::after {
+  content: ""; display: block; height: 8px; margin-top: auto;
+  background: linear-gradient(90deg, var(--o), var(--o-dd));
+}
+@container fsroot (max-width: 680px) {
+  .fs-letterhead .fs-head { padding: 32px 22px 20px; }
+  .fs-letterhead .fs-flow, .fs-letterhead .fs-section, .fs-letterhead .fs-foot { padding-left: 22px; padding-right: 22px; }
+}
+
+/* ==========================================================================
+   05 — CARDS
+   Every question floats on its own card over a warm ground. The friendliest
+   of the six — good for feedback, polls and anything voluntary.
+   ========================================================================== */
+
+.fs-cards { background: var(--o-l); }
+.fs-cards .fs-main { max-width: 720px; margin: 0 auto; width: 100%; padding: 0 20px 70px; }
+.fs-cards .fs-head {
+  background: #fff; border-radius: 20px; padding: 32px 34px;
+  margin-top: 30px; box-shadow: 0 2px 4px rgba(0,0,0,.04), 0 18px 40px -26px rgba(200,90,40,.5);
+  border-top: 6px solid var(--o);
+}
+.fs-cards .fs-head h1 { font-size: clamp(25px, 3.4vw, 33px); font-weight: 800; margin-top: 22px; }
+.fs-cards .fs-desc { margin-top: 12px; color: var(--k2); white-space: pre-wrap; }
+.fs-cards .fs-headnote { margin-top: 14px; color: var(--k3); font-size: 13px; }
+.fs-cards .fs-flow { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+.fs-cards .fs-q {
+  background: #fff; border-radius: 18px; padding: 24px 26px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 10px 26px -20px rgba(200,90,40,.55);
+  border: 1px solid transparent;
+  transition: box-shadow .2s var(--ease), transform .2s var(--ease), border-color .2s var(--ease);
+}
+.fs-cards .fs-q:focus-within { border-color: var(--o-ll); transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,.06), 0 20px 40px -24px rgba(200,90,40,.6); }
+.fs-cards .fs-q.invalid { border-color: var(--bad); }
+.fs-cards .fs-n {
+  font-family: var(--display); font-stretch: 118%; font-weight: 800; font-size: 11px;
+  letter-spacing: .16em; color: var(--o); margin-bottom: 10px;
+}
+.fs-cards .fs-n::before { content: "Q"; }
+.fs-cards .fs-qtitle { font-family: var(--display); font-stretch: 114%; font-weight: 700; font-size: 18px; letter-spacing: -.015em; }
+.fs-cards .fs-field { margin-top: 16px; }
+.fs-cards .fs-input, .fs-cards .fs-textarea, .fs-cards .fs-select {
+  border: 1.5px solid var(--ln); border-radius: 14px; padding: 13px 16px; background: var(--o-l);
+}
+.fs-cards .fs-input:focus, .fs-cards .fs-textarea:focus, .fs-cards .fs-select:focus {
+  outline: none; border-color: var(--o); background: #fff; box-shadow: 0 0 0 4px rgba(240,101,34,.13);
+}
+.fs-cards .fs-choice {
+  border: 1.5px solid var(--ln); border-radius: 14px; padding: 13px 16px; background: var(--o-l);
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.fs-cards .fs-choices { gap: 9px; }
+.fs-cards .fs-choice:hover { border-color: var(--o-300, #FDAC80); background: #fff; }
+.fs-cards .fs-choice.on { border-color: var(--o); background: #fff; font-weight: 600; }
+.fs-cards .fs-mark { width: 19px; height: 19px; border-radius: 50%; border: 2px solid var(--ln2); flex: none; }
+.fs-cards .fs-choice.on .fs-mark { border-color: var(--o); background: var(--o); box-shadow: inset 0 0 0 3.5px #fff; }
+.fs-cards .fs-section {
+  background: none; padding: 16px 4px 0;
+}
+.fs-cards .fs-section h2 { font-size: 20px; }
+.fs-cards .fs-foot { margin-top: 24px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.fs-cards .fs-submit { background: var(--o); color: #fff; border-radius: 99px; padding: 16px 40px; font-size: 15.5px; box-shadow: 0 8px 20px -8px rgba(240,101,34,.8); }
+.fs-cards .fs-submit:hover { background: var(--o-dd); }
+.fs-cards .fs-done { background: #fff; border-radius: 20px; margin-top: 30px; padding: 60px 30px; }
+
+/* ==========================================================================
+   06 — COVER
+   A full orange cover carrying the letterhead and the title, then the
+   questions on white beneath. The most "designed" of the six.
+   ========================================================================== */
+
+.fs-cover { flex-direction: column; }
+.fs-cover .fs-main { max-width: none; }
+.fs-cover .fs-head {
+  background: linear-gradient(145deg, var(--o) 0%, var(--o-d) 55%, var(--o-dd) 100%);
+  color: #fff; padding: 56px 40px 64px; position: relative; overflow: hidden;
+}
+.fs-cover .fs-head::after {
+  content: ""; position: absolute; right: -120px; top: -120px;
+  width: 380px; height: 380px; border-radius: 50%; background: rgba(255,255,255,.09);
+}
+.fs-cover .fs-head > * { position: relative; }
+.fs-cover .fs-head .letterhead { max-width: 780px; margin: 0 auto; }
+.fs-cover .fs-head h1 {
+  color: #fff; font-size: clamp(30px, 5vw, 46px); font-weight: 800;
+  max-width: 780px; margin: 30px auto 0;
+}
+.fs-cover .fs-desc { color: rgba(255,255,255,.9); margin: 14px auto 0; max-width: 780px; white-space: pre-wrap; }
+.fs-cover .fs-headnote { color: rgba(255,255,255,.8); margin: 18px auto 0; max-width: 780px; font-size: 13px; }
+/* Only the note sitting on the orange banner is white — the asterisks beside
+   questions are on the white card and must stay orange, or they vanish. */
+.fs-cover .fs-head .fs-req { color: #fff; }
+.fs-cover .fs-flow {
+  max-width: 780px; margin: -28px auto 0; width: 100%; padding: 0 40px;
+  display: flex; flex-direction: column; gap: 2px; position: relative;
+  background: #fff; border-radius: 22px 22px 0 0;
+}
+.fs-cover .fs-q { padding: 28px 0; border-bottom: 1px solid var(--ln); }
+.fs-cover .fs-q:first-child { padding-top: 38px; }
+.fs-cover .fs-q.invalid { background: var(--o-l); }
+.fs-cover .fs-n {
+  display: inline-block; min-width: 30px; height: 30px; line-height: 30px; text-align: center;
+  border-radius: 9px; background: var(--o-l); color: var(--o-dd);
+  font-family: var(--display); font-stretch: 116%; font-weight: 800; font-size: 12.5px;
+  margin-bottom: 12px; font-variant-numeric: tabular-nums;
+}
+.fs-cover .fs-qtitle { font-family: var(--display); font-stretch: 115%; font-weight: 700; font-size: 19px; letter-spacing: -.015em; }
+.fs-cover .fs-field { margin-top: 16px; }
+.fs-cover .fs-input, .fs-cover .fs-textarea, .fs-cover .fs-select {
+  border: 0; border-bottom: 2px solid var(--ln); border-radius: 0; padding: 11px 2px; font-size: 16.5px;
+}
+.fs-cover .fs-textarea { border: 2px solid var(--ln); border-radius: 14px; padding: 14px 16px; }
+.fs-cover .fs-select { border: 2px solid var(--ln); border-radius: 14px; padding: 13px 16px; }
+.fs-cover .fs-input:focus, .fs-cover .fs-textarea:focus, .fs-cover .fs-select:focus { outline: none; border-color: var(--o); }
+.fs-cover .fs-choices { flex-direction: row; flex-wrap: wrap; gap: 10px; }
+.fs-cover .fs-choice {
+  width: auto; border: 2px solid var(--ln); border-radius: 99px; padding: 11px 20px;
+  color: var(--k2); gap: 0; font-size: 15px;
+}
+.fs-cover .fs-mark { display: none; }
+.fs-cover .fs-choice:hover { border-color: var(--o-300, #FDAC80); background: var(--o-l); }
+.fs-cover .fs-choice.on { background: var(--o); border-color: var(--o); color: #fff; font-weight: 600; }
+.fs-cover .fs-section { padding: 30px 0 6px; }
+.fs-cover .fs-section h2 { font-size: 21px; color: var(--o-dd); }
+.fs-cover .fs-foot {
+  max-width: 780px; margin: 0 auto; width: 100%; padding: 30px 40px 70px;
+  background: #fff; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+.fs-cover .fs-submit { background: var(--o); color: #fff; border-radius: 14px; padding: 15px 34px; font-size: 15px; }
+.fs-cover .fs-submit:hover { background: var(--o-d); }
+.fs-cover .fs-done { padding: 70px 30px; }
+@container fsroot (max-width: 680px) {
+  .fs-cover .fs-head { padding: 32px 22px 46px; }
+  .fs-cover .fs-flow, .fs-cover .fs-foot { padding-left: 22px; padding-right: 22px; }
+}
+
+/* ==========================================================================
+   LETTERHEAD — the institution block at the head of every form
+
+   This lives here, not in styles.css, because the Rust server embeds *this*
+   file and serves it to phones. Keeping it here is what stops the shared page
+   and the desktop app from drifting apart.
+
+   The colour tokens fall back to the app's own names, so the same markup also
+   renders correctly in the builder, outside any `.fs` root.
+   ========================================================================== */
+
+.letterhead { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.letterhead .lh-row { display: flex; align-items: center; gap: 16px; }
+.letterhead img { flex: none; }
+.lh-text { min-width: 0; }
+.lh-name {
+  font-family: var(--display); font-stretch: 116%; font-weight: 800;
+  font-size: 21px; letter-spacing: -.015em; line-height: 1.15;
+  color: var(--k, var(--ink));
+}
+.lh-tagline {
+  font-family: var(--display); font-stretch: 110%; font-weight: 500;
+  font-size: 12px; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--o, var(--o-600)); margin-top: 4px;
+}
+/* Address on one line, phones on the next — a form header is read, not
+   skimmed, and wrapping a separator mid-line looks like a typo. */
+.lh-contact {
+  font-size: 12.5px; color: var(--k3, var(--ink-3)); line-height: 1.7;
+  display: flex; flex-direction: column;
+}
+.lh-sep { display: none; }
+.letterhead.compact { gap: 0; }
+.letterhead.compact .lh-name { font-size: 15px; }
+.letterhead.compact .lh-tagline { font-size: 10px; margin-top: 1px; }
+.letterhead.on-dark .lh-name { color: #fff; }
+.letterhead.on-dark .lh-tagline { color: rgba(255, 255, 255, .92); }
+.letterhead.on-dark .lh-contact { color: rgba(255, 255, 255, .82); }
+@media (max-width: 620px) {
+  .letterhead .lh-row { gap: 12px; }
+  .lh-name { font-size: 17px; }
+  .lh-contact { font-size: 11.5px; gap: 7px; }
+}
+
+/* ==========================================================================
+   PICTURE BLOCKS and PHOTO UPLOADS
+   ========================================================================== */
+
+/* A picture the form shows (a map, a notice, a sample of a filled slip). */
+.fs-figure { margin: 8px 0 4px; }
+.fs-figure img {
+  display: block; width: 100%; height: auto; border-radius: 12px;
+  border: 1px solid var(--ln); background: var(--w);
+}
+.fs-figure.small img { max-width: 260px; }
+.fs-figure.medium img { max-width: 480px; }
+.fs-figure.full img { max-width: 100%; }
+.fs-figcap {
+  font-size: 12.5px; color: var(--k3); margin-top: 8px; line-height: 1.6;
+}
+
+/* The respondent's own upload. */
+.fs-drop {
+  border: 1.5px dashed var(--ln2); border-radius: 14px; background: var(--o-l);
+  padding: 22px 18px; text-align: center; cursor: pointer; display: block;
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.fs-drop:hover, .fs-drop.over { border-color: var(--o); background: var(--o-ll); }
+.fs-drop input[type="file"] { display: none; }
+.fs-drop b {
+  display: block; font-family: var(--display); font-stretch: 112%;
+  font-weight: 700; font-size: 15px; color: var(--o-dd);
+}
+.fs-drop s { display: block; text-decoration: none; font-size: 12.5px; color: var(--k3); margin-top: 5px; }
+.fs-shot { display: flex; align-items: flex-start; gap: 14px; }
+.fs-shot img {
+  width: 132px; height: 132px; object-fit: cover; border-radius: 12px;
+  border: 1px solid var(--ln2); background: var(--w);
+}
+.fs-shot .meta { font-size: 12.5px; color: var(--k3); line-height: 1.7; }
+.fs-shot button {
+  font: inherit; font-size: 13px; margin-top: 8px; cursor: pointer;
+  background: none; border: 1px solid var(--ln2); color: var(--o-dd);
+  border-radius: 9px; padding: 5px 12px;
+}
+.fs-shot button:hover { background: var(--o-l); }

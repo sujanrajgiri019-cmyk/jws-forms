@@ -8,6 +8,11 @@ import type { Answers, AnswerValue, FormDef, Question } from "../types";
  * as one typed on the school PC. If you change a rule here, change it there too.
  */
 
+/** Blocks that show something instead of asking something — they own no column. */
+export function isDisplayBlock(t: Question["type"]): boolean {
+  return t === "section" || t === "image";
+}
+
 export function headersFor(q: Question): string[] {
   const t = (q.title || "Untitled question").trim();
   if (q.type === "grid_choice" || q.type === "grid_checkbox") {
@@ -40,7 +45,7 @@ export function buildRow(form: FormDef, answers: Answers) {
     values.push(new Date().toLocaleString());
   }
   for (const q of form.questions) {
-    if (q.type === "section") continue;
+    if (isDisplayBlock(q.type)) continue;
     headers.push(...headersFor(q));
     values.push(...valuesFor(q, answers));
   }
@@ -52,7 +57,7 @@ export function allHeaders(form: FormDef): string[] {
   const h: string[] = [];
   if (form.settings.collectTimestamp) h.push("Timestamp");
   for (const q of form.questions) {
-    if (q.type === "section") continue;
+    if (isDisplayBlock(q.type)) continue;
     h.push(...headersFor(q));
   }
   return h;
@@ -76,7 +81,7 @@ const PHONE = /^[0-9+\-\s()]{6,}$/;
 
 /** "" when the answer is acceptable, otherwise the message to show. */
 export function validate(q: Question, v: AnswerValue): string {
-  if (q.type === "section") return "";
+  if (isDisplayBlock(q.type)) return "";
   if (q.required && !isAnswered(q, v)) {
     if (q.type === "grid_choice" || q.type === "grid_checkbox")
       return "Please answer every row.";
@@ -102,7 +107,7 @@ export function validateAll(form: FormDef, answers: Answers): Record<string, str
 
 /** Fraction of answerable questions that have an answer, for the progress bar. */
 export function completion(form: FormDef, answers: Answers): number {
-  const qs = form.questions.filter((q) => q.type !== "section");
+  const qs = form.questions.filter((q) => !isDisplayBlock(q.type));
   if (!qs.length) return 0;
   const done = qs.filter((q) => isAnswered(q, answers[q.id])).length;
   return done / qs.length;

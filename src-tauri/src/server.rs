@@ -8,7 +8,7 @@
 use crate::models::ServerStatus;
 use crate::storage;
 use axum::{
-    extract::State,
+    extract::{DefaultBodyLimit, State},
     http::{header, StatusCode},
     response::{Html, IntoResponse},
     routing::{get, post},
@@ -20,7 +20,44 @@ use tokio::sync::oneshot;
 use tower_http::cors::CorsLayer;
 
 const PUBLIC_HTML: &str = include_str!("../public_form.html");
-const LOGO_SVG: &str = include_str!("../../src/assets/shield.svg");
+
+// The institution marks, embedded exactly as they are drawn. There is no
+// tracing or recolouring anywhere in this app — whatever PNG sits in
+// `src/assets/logos/` is what a parent sees on their phone.
+const LOGO_SCHOOL: &[u8] = include_bytes!("../../src/assets/logos/school.png");
+const LOGO_PLUS2: &[u8] = include_bytes!("../../src/assets/logos/plus2.png");
+const LOGO_COLLEGE: &[u8] = include_bytes!("../../src/assets/logos/college.png");
+
+/// name, tagline, whether the artwork already contains the name, and its
+/// width ÷ height. Mirrors `src/lib/brand.ts` — change one, change the other.
+fn institution(id: &str) -> (&'static [u8], &'static str, &'static str, bool, f32) {
+    match id {
+        "plus2" => (
+            LOGO_PLUS2,
+            "Janapremi World School PLUS 2",
+            "Science | Management | Law",
+            true,
+            1377.0 / 769.0,
+        ),
+        "college" => (
+            LOGO_COLLEGE,
+            "Janapremi College",
+            "Affiliated to Tribhuwan University",
+            true,
+            900.0 / 387.0,
+        ),
+        _ => (
+            LOGO_SCHOOL,
+            "Janapremi World School",
+            "The World Of Learning…",
+            false,
+            1.0,
+        ),
+    }
+}
+
+const ADDRESS: &str = "Madhyapur Thimi–3, Kaushaltar, Bhaktapur";
+const PHONE_LINE: &str = "9744570500  |  9744570501  |  01-5910299";
 // Bundled so a phone on the school Wi-Fi gets the real typefaces without
 // touching the internet.
 // The form stylesheet is the *same file* the desktop app uses, so the shared
@@ -102,10 +139,13 @@ pub fn start(state: &ServerState, form_id: &str, port: u16) -> Result<ServerStat
 
     let router = Router::new()
         .route("/", get(page))
-        .route("/logo.svg", get(logo))
+        .route("/logo.png", get(logo))
         .route("/f/archivo.woff2", get(font_display))
         .route("/f/body.woff2", get(font_body))
         .route("/submit", post(submit))
+        // A submitted photo arrives base64-encoded inside the JSON body, so the
+        // 2 MB default is far too small.
+        .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
         .layer(CorsLayer::permissive())
         .with_state(app_state);
 
@@ -150,8 +190,17 @@ pub fn start(state: &ServerState, form_id: &str, port: u16) -> Result<ServerStat
     Ok(out)
 }
 
-async fn logo() -> impl IntoResponse {
-    ([(header::CONTENT_TYPE, "image/svg+xml")], LOGO_SVG)
+async fn logo(State(st): State<AppState>) -> impl IntoResponse {
+    let id = storage::load_form(&st.form_id)
+        .map(|f| f.settings.institution)
+        .unwrap_or_else(|_| "school".to_string());
+    (
+        [
+            (header::CONTENT_TYPE, "image/png"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        institution(&id).0,
+    )
 }
 
 async fn font_display() -> impl IntoResponse {
@@ -187,14 +236,21 @@ async fn page(State(st): State<AppState>) -> impl IntoResponse {
     let form = storage::load_form(&st.form_id).unwrap_or_default();
     let json = serde_json::to_string(&raw).unwrap_or_else(|_| "null".into());
 
-    // The mark is injected into a single-quoted JS string, so it must be one
-    // line and must not carry an apostrophe.
-    let logo_js = LOGO_SVG.replace('\n', " ").replace('\'', "&#39;");
+    let (_, name, tagline, has_name, aspect) = institution(&form.settings.institution);
+    let brand = serde_json::json!({
+        "name": name,
+        "tagline": tagline,
+        "logoHasName": has_name,
+        "aspect": aspect,
+        "address": ADDRESS,
+        "phones": PHONE_LINE,
+    })
+    .to_string();
 
     let html = PUBLIC_HTML
         .replace("__FORM_CSS__", FORM_CSS)
         .replace("__STYLE__", &form.settings.style)
-        .replace("__LOGO_SVG__", &logo_js)
+        .replace("\"__BRAND_JSON__\"", &brand)
         .replace(
             "__TITLE__",
             &html_escape(if form.title.trim().is_empty() {

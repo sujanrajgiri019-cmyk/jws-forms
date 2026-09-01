@@ -1,8 +1,10 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useRef, useState } from "react";
 import { Icon } from "../components/Icons";
-import { Button, Menu, Toggle } from "../components/ui";
-import { TYPES, TYPE_GROUPS, TYPE_MAP } from "../lib/questionTypes";
+import { Button, Menu, Toggle, useToast } from "../components/ui";
+import { TYPES, TYPE_GROUPS, TYPE_MAP, isDisplay } from "../lib/questionTypes";
+import { humanSize, pictureFromClipboard, pictureFromDrop, readPicture } from "../lib/image";
 import { useApp } from "../lib/store";
 import { OptionList } from "./OptionList";
 import type { Question, QuestionType } from "../types";
@@ -69,7 +71,11 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
               <input
                 className="bare h2"
                 value={q.title}
-                placeholder={`Question ${index + 1}`}
+                placeholder={
+                  q.type === "image"
+                    ? "Caption above the picture (optional)"
+                    : `Question ${index + 1}`
+                }
                 onChange={(e) => patch({ title: e.target.value })}
               />
               {(isSel || q.description) && (
@@ -107,7 +113,7 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
           >
             Delete
           </Button>
-          {q.type !== "section" && (
+          {!isDisplay(q.type) && (
             <>
               <span className="sep" />
               <Toggle
@@ -219,6 +225,9 @@ function Body({
   patch: (p: Partial<Question>) => void;
 }) {
   const meta = TYPE_MAP[q.type];
+
+  if (q.type === "image") return <PictureEditor q={q} isSel={isSel} patch={patch} />;
+  if (q.type === "photo") return <PhotoPreview />;
 
   if (meta.hasOptions) {
     if (!isSel) return <OptionsPreview q={q} />;
@@ -500,6 +509,178 @@ function ScalePreview({ q }: { q: Question }) {
           <span>{q.scale.maxLabel}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------- pictures */
+
+/**
+ * The editor for a picture block.
+ *
+ * Three ways in, because people reach for different ones: press Ctrl+V with
+ * something on the clipboard, drag a file onto the card, or click and browse.
+ * Whichever is used, `readPicture` downscales it before it is kept, so a form
+ * file never balloons because someone dropped in a camera photo.
+ */
+function PictureEditor({
+  q,
+  isSel,
+  patch,
+}: {
+  q: Question;
+  isSel: boolean;
+  patch: (p: Partial<Question>) => void;
+}) {
+  const toast = useToast();
+  const input = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function take(file: File | null) {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const pic = await readPicture(file);
+      patch({ image: pic.dataUrl });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "That picture could not be added.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (q.image) {
+    return (
+      <div
+        className="picwrap"
+        onPaste={(e) => {
+          const f = pictureFromClipboard(e.nativeEvent as ClipboardEvent);
+          if (f) {
+            e.preventDefault();
+            void take(f);
+          }
+        }}
+        tabIndex={isSel ? 0 : -1}
+      >
+        <figure className={`picshow ${q.imageWidth}`}>
+          <img src={q.image} alt={q.imageCaption || q.title || "Picture"} />
+        </figure>
+
+        {isSel && (
+          <div className="stack" style={{ marginTop: 12 }}>
+            <div className="wrap-row">
+              <label className="label" style={{ margin: 0 }}>
+                Size
+              </label>
+              <div className="seg">
+                {(["small", "medium", "full"] as const).map((w) => (
+                  <button
+                    key={w}
+                    className={q.imageWidth === w ? "on" : ""}
+                    onClick={() => patch({ imageWidth: w })}
+                  >
+                    {w === "small" ? "Small" : w === "medium" ? "Medium" : "Full width"}
+                  </button>
+                ))}
+              </div>
+              <span className="grow" />
+              <Button size="sm" icon="upload" onClick={() => input.current?.click()}>
+                Replace
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                icon="trash"
+                onClick={() => patch({ image: "", imageCaption: "" })}
+              >
+                Remove
+              </Button>
+            </div>
+            <div>
+              <label className="label">Caption under the picture</label>
+              <input
+                className="input"
+                placeholder="Optional — e.g. Route map to the school gate"
+                value={q.imageCaption}
+                onChange={(e) => patch({ imageCaption: e.target.value })}
+              />
+            </div>
+            <p className="hint">
+              About {humanSize(q.image.length)}. Large pictures are shrunk automatically so
+              the form stays quick to open on a phone.
+            </p>
+          </div>
+        )}
+
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            void take(e.target.files?.[0] ?? null);
+            e.target.value = "";
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div
+        className={`picdrop${over ? " over" : ""}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => input.current?.click()}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && input.current?.click()}
+        onPaste={(e) => {
+          const f = pictureFromClipboard(e.nativeEvent as ClipboardEvent);
+          if (f) {
+            e.preventDefault();
+            void take(f);
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          void take(pictureFromDrop(e));
+        }}
+      >
+        <Icon name="image" size={30} />
+        <b>{busy ? "Adding the picture…" : "Add a picture"}</b>
+        <s>
+          Click to browse, drag a file here, or click this box and press{" "}
+          <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste one
+        </s>
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          void take(e.target.files?.[0] ?? null);
+          e.target.value = "";
+        }}
+      />
+    </>
+  );
+}
+
+/** What a respondent will see for a photo-upload question. */
+function PhotoPreview() {
+  return (
+    <div className="picdrop still">
+      <Icon name="camera" size={28} />
+      <b>The person filling the form uploads a photo here</b>
+      <s>Saved beside the Excel file, with the file name written into the sheet</s>
     </div>
   );
 }

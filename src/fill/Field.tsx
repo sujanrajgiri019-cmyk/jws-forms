@@ -1,5 +1,7 @@
+import { useRef, useState } from "react";
 import { Icon } from "../components/Icons";
 import { shuffled } from "../lib/answers";
+import { humanSize, pictureFromClipboard, pictureFromDrop, readPicture } from "../lib/image";
 import type { AnswerValue, FormStyle, Question } from "../types";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -136,6 +138,9 @@ export function Field({
     case "grid_choice":
     case "grid_checkbox":
       return <Grid q={q} value={value} onChange={onChange} />;
+
+    case "photo":
+      return <PhotoField value={str} onChange={onChange} />;
 
     default:
       return null;
@@ -325,5 +330,103 @@ function Grid({
         </tbody>
       </table>
     </div>
+  );
+}
+
+
+/* --------------------------------------------------------------- photo */
+
+/**
+ * A respondent's photo upload.
+ *
+ * On a phone this opens the camera directly, which is the whole point for
+ * admission forms — a parent photographs the birth certificate on the spot.
+ * The picture is held as a data URL while the form is being filled; the Rust
+ * side writes it out as a real file beside the workbook on submit.
+ */
+function PhotoField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: AnswerValue) => void;
+}) {
+  const input = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function take(file: File | null) {
+    if (!file) return;
+    setBusy(true);
+    setErr("");
+    try {
+      const pic = await readPicture(file);
+      onChange(pic.dataUrl);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "That picture could not be added.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (value) {
+    return (
+      <div className="fs-shot">
+        <img src={value} alt="The photo you attached" />
+        <div className="meta">
+          Attached · about {humanSize(value.length)}
+          <br />
+          <button type="button" onClick={() => onChange("")}>
+            Remove and choose another
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div
+        className={`fs-drop${over ? " over" : ""}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => input.current?.click()}
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && input.current?.click()}
+        onPaste={(e) => {
+          const f = pictureFromClipboard(e.nativeEvent as ClipboardEvent);
+          if (f) {
+            e.preventDefault();
+            void take(f);
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setOver(true);
+        }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setOver(false);
+          void take(pictureFromDrop(e));
+        }}
+      >
+        <Icon name="camera" size={26} />
+        <b>{busy ? "Adding…" : "Take a photo or choose a file"}</b>
+        <s>Tap to open the camera, or drag a picture here</s>
+      </div>
+      {err && <p className="fs-err">{err}</p>}
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        onChange={(e) => {
+          void take(e.target.files?.[0] ?? null);
+          e.target.value = "";
+        }}
+      />
+    </>
   );
 }

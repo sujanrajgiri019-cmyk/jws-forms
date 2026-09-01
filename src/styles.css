@@ -572,3 +572,137 @@ table.data td { font-variant-numeric: tabular-nums; }
   font-size: 13.5px; color: var(--o-700); user-select: text; flex: 1; min-width: 200px;
   word-break: break-all;
 }
+
+/* ==========================================================================
+   TABS — the editor is split into Questions / Design / Settings rather than
+   one endless scroll.
+   ========================================================================== */
+
+.tabs {
+  display: flex; gap: 4px; align-items: flex-end;
+  border-bottom: 1px solid var(--hair); background: var(--paper);
+  padding: 0 24px; flex: none;
+}
+.tab {
+  position: relative; background: none; border: 0; cursor: pointer;
+  font-family: var(--display); font-stretch: 113%; font-weight: 600; font-size: 14px;
+  color: var(--ink-3); padding: 13px 16px 14px; border-radius: var(--r-sm) var(--r-sm) 0 0;
+  display: flex; align-items: center; gap: 9px;
+  transition: color .15s var(--ease), background .15s var(--ease);
+}
+.tab svg { width: 17px; height: 17px; }
+.tab:hover { color: var(--ink); background: var(--o-50); }
+.tab.on { color: var(--o-600); }
+.tab.on::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px;
+  height: 3px; border-radius: 3px 3px 0 0; background: var(--o-500);
+}
+.tab .badge {
+  font-size: 11px; font-weight: 700; background: var(--o-100); color: var(--o-700);
+  border-radius: 99px; padding: 1px 7px; font-variant-numeric: tabular-nums;
+}
+.tab.on .badge { background: var(--o-500); color: #fff; }
+
+/* institution picker */
+.instpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 640px) { .instpick { grid-template-columns: 1fr; } }
+.instopt {
+  border: 2px solid var(--hair); border-radius: var(--r-lg); padding: 20px 16px;
+  background: var(--paper); cursor: pointer; text-align: center; font-family: inherit;
+  color: inherit; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  transition: border-color .16s var(--ease), transform .16s var(--ease), box-shadow .16s var(--ease);
+}
+.instopt:hover { border-color: var(--o-300); transform: translateY(-2px); box-shadow: var(--sh-2); }
+.instopt.on { border-color: var(--o-500); background: var(--o-50); }
+.instopt b { font-family: var(--display); font-stretch: 116%; font-weight: 700; font-size: 16px; }
+.instopt b, .instopt s { display: block; }
+.instopt s { text-decoration: none; font-size: 12.5px; color: var(--ink-3); margin-top: 3px; }
+
+/* image block editing */
+.imgdrop {
+  border: 2px dashed var(--edge); border-radius: var(--r-lg); padding: 30px 20px;
+  text-align: center; color: var(--ink-3); cursor: pointer; background: var(--o-50);
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.imgdrop:hover, .imgdrop.over { border-color: var(--o-500); background: var(--o-100); color: var(--ink); }
+.imgdrop svg { width: 30px; height: 30px; margin-bottom: 8px; color: var(--o-400); }
+.imgpreview { position: relative; border-radius: var(--r); overflow: hidden; border: 1px solid var(--hair); }
+.imgpreview img { display: block; width: 100%; height: auto; }
+.imgpreview .bar {
+  position: absolute; top: 8px; right: 8px; display: flex; gap: 6px;
+  background: rgba(255, 255, 255, .94); border-radius: var(--r-sm); padding: 4px;
+  box-shadow: var(--sh-2);
+}
+
+/* thumbnails for the three additional styles */
+.th-let { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; height: 100%; }
+.th-let .hd { display: flex; align-items: center; gap: 6px; border-bottom: 2px solid var(--o-500); padding-bottom: 6px; }
+.th-let .hd i { width: 12px; height: 12px; border-radius: 3px; background: var(--o-500); flex: none; }
+.th-let .hd em { flex: 1; height: 5px; background: var(--ink); border-radius: 2px; }
+.th-let s { display: block; height: 4px; background: var(--hair); border-radius: 2px; text-decoration: none; }
+.th-let .ft { margin-top: auto; height: 3px; background: var(--o-200); border-radius: 2px; }
+.th-crd { padding: 9px 11px; display: flex; flex-direction: column; gap: 6px; }
+.th-crd .c {
+  border: 1px solid var(--hair); border-radius: 6px; padding: 6px 7px;
+  display: flex; flex-direction: column; gap: 4px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+.th-crd .c.on { border-color: var(--o-500); box-shadow: 0 2px 6px rgba(240,101,34,.25); }
+.th-crd .c i { height: 4px; width: 62%; background: var(--ink); border-radius: 2px; }
+.th-crd .c s { height: 8px; background: var(--o-50); border: 1px solid var(--hair); border-radius: 3px; text-decoration: none; }
+.th-cov { display: flex; flex-direction: column; height: 100%; }
+.th-cov .top {
+  background: linear-gradient(150deg, var(--o-500), var(--o-700)); height: 54%;
+  display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 0 12px;
+}
+.th-cov .top i { height: 11px; width: 11px; border-radius: 3px; background: #fff; }
+.th-cov .top em { height: 5px; width: 68%; background: rgba(255,255,255,.85); border-radius: 2px; }
+.th-cov .bot { padding: 9px 12px; display: flex; flex-direction: column; gap: 5px; }
+.th-cov .bot s { height: 5px; background: var(--hair); border-radius: 2px; text-decoration: none; }
+.styleopt .thumb { height: 96px; }
+
+/* ==========================================================================
+   PICTURE BLOCKS in the editor
+   ========================================================================== */
+
+.picdrop {
+  border: 1.5px dashed var(--edge); border-radius: var(--r);
+  background: var(--o-25, #FFF8F3); padding: 26px 20px; text-align: center;
+  cursor: pointer; color: var(--o-600);
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.picdrop:hover, .picdrop.over, .picdrop:focus-visible { border-color: var(--o-500); background: var(--o-50); }
+.picdrop.still { cursor: default; }
+.picdrop.still:hover { border-color: var(--edge); background: var(--o-25, #FFF8F3); }
+.picdrop b {
+  display: block; margin-top: 8px; font-family: var(--display); font-stretch: 112%;
+  font-weight: 700; font-size: 15px; color: var(--o-700);
+}
+.picdrop s {
+  display: block; text-decoration: none; margin-top: 5px;
+  font-size: 12.5px; color: var(--ink-3);
+}
+.picdrop kbd {
+  font: inherit; font-size: 11.5px; background: #fff; border: 1px solid var(--hair);
+  border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px;
+}
+
+.picshow { margin: 0; }
+.picshow img {
+  display: block; width: 100%; height: auto; border-radius: var(--r);
+  border: 1px solid var(--hair); background: #fff;
+}
+.picshow.small img { max-width: 240px; }
+.picshow.medium img { max-width: 420px; }
+.picshow.full img { max-width: 100%; }
+.picwrap:focus-visible { outline: none; }
+
+/* small segmented control */
+.seg { display: inline-flex; border: 1px solid var(--hair); border-radius: 10px; overflow: hidden; }
+.seg button {
+  font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 12px;
+  background: #fff; border: 0; border-right: 1px solid var(--hair);
+  color: var(--ink-3); cursor: pointer;
+}
+.seg button:last-child { border-right: 0; }
+.seg button:hover { background: var(--o-50); color: var(--o-700); }
+.seg button.on { background: var(--o-500); color: #fff; }

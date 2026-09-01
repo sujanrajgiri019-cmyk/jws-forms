@@ -51,12 +51,13 @@ __FORM_CSS__
 "use strict";
 var FORM = "__FORM_JSON__";
 var STYLE = "__STYLE__";
-var LOGO = '__LOGO_SVG__';
+var BRAND = "__BRAND_JSON__";
 
 var LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 var ICON = {
   star: '<svg viewBox="0 0 24 24" fill="currentColor" width="30" height="30"><path d="M12 3.2l2.7 5.5 6 .9-4.35 4.24L17.4 20 12 17.15 6.6 20l1.05-6.16L3.3 9.6l6-.9z"/></svg>',
   tick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="60" height="60"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM8.2 12.3l2.6 2.6 5-5.4"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M3 8.8A1.8 1.8 0 0 1 4.8 7h2.5l1.4-2.2h6.6L16.7 7h2.5A1.8 1.8 0 0 1 21 8.8v9.4A1.8 1.8 0 0 1 19.2 20H4.8A1.8 1.8 0 0 1 3 18.2Z"/><circle cx="12" cy="13" r="3.6"/></svg>',
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M12 8.5v5M12 16.6h.01M10.3 4.2 2.7 17.4A1.7 1.7 0 0 0 4.2 20h15.6a1.7 1.7 0 0 0 1.5-2.6L13.7 4.2a1.7 1.7 0 0 0-3 0Z"/></svg>'
 };
 
@@ -85,9 +86,51 @@ function el(tag, attrs, children) {
   });
   return n;
 }
-function logo(cls) { return el("span", { class: cls || "fs-logo", html: LOGO }); }
+/* The mark is served by the app at /logo.png — the original artwork, drawn
+   as-is. `h` is the height; the width follows the artwork's own proportions so
+   the square School mark and the wide +2 / College lockups both sit right. */
+function logoImg(h, plate) {
+  var img = el("img", {
+    src: "/logo.png", alt: BRAND.name,
+    style: "height:" + h + "px;width:" + Math.round(h * BRAND.aspect) + "px;object-fit:contain;display:block"
+  });
+  if (!plate) return el("span", { style: "line-height:0" }, [img]);
+  return el("span", {
+    style: "display:inline-flex;background:#fff;border-radius:" + Math.round(h * .2) +
+           "px;padding:" + Math.round(h * .13) + "px;line-height:0;box-shadow:0 2px 10px rgba(0,0,0,.12)"
+  }, [img]);
+}
+
+/* The block that heads every form. When the artwork already carries the name
+   (+2 and College) the name is not typeset again. */
+function letterhead(opts) {
+  opts = opts || {};
+  var h = opts.height || 58;
+  var cls = "letterhead" + (BRAND.logoHasName ? " wide" : "") +
+            (opts.compact ? " compact" : "") + (opts.onDark ? " on-dark" : "");
+  var contact = opts.compact ? null : el("div", { class: "lh-contact" }, [
+    el("span", {}, [BRAND.address]),
+    el("span", {}, [BRAND.phones])
+  ]);
+  if (BRAND.logoHasName) {
+    return el("div", { class: cls }, [
+      logoImg(opts.compact ? h : Math.round(h * 1.5), opts.plate), contact
+    ]);
+  }
+  return el("div", { class: cls }, [
+    el("div", { class: "lh-row" }, [
+      logoImg(h, opts.plate),
+      el("div", { class: "lh-text" }, [
+        el("div", { class: "lh-name" }, [BRAND.name]),
+        el("div", { class: "lh-tagline" }, [BRAND.tagline])
+      ])
+    ]),
+    contact
+  ]);
+}
 function questions() { return FORM.questions || []; }
-function answerable() { return questions().filter(function (q) { return q.type !== "section"; }); }
+function isDisplayBlock(t) { return t === "section" || t === "image"; }
+function answerable() { return questions().filter(function (q) { return !isDisplayBlock(q.type); }); }
 function settings() { return FORM.settings || {}; }
 
 /* ---------------------------------------------------------- answers model
@@ -119,7 +162,7 @@ function isAnswered(q) {
   return v !== undefined && v !== null && String(v).trim() !== "";
 }
 function validate(q) {
-  if (q.type === "section") return "";
+  if (isDisplayBlock(q.type)) return "";
   if (q.required && !isAnswered(q)) {
     return (q.type === "grid_choice" || q.type === "grid_checkbox")
       ? "Please answer every row." : "This question is required.";
@@ -193,6 +236,8 @@ function field(q) {
 
     case "multiple_choice":
     case "checkboxes": return choices(q);
+
+    case "photo": return photoField(q, str);
 
     case "linear_scale": {
       var wrap = el("div", {}, []);
@@ -333,6 +378,90 @@ function grid(q) {
   ]);
 }
 
+/* --------------------------------------------------------------- pictures */
+
+/* Downscale before keeping, so a phone photo does not become a 6 MB POST. */
+function readPicture(file, done, fail) {
+  if (!file || file.type.indexOf("image/") !== 0) { fail("That file is not a picture."); return; }
+  if (file.size > 25 * 1024 * 1024) { fail("That picture is too large. Try one under 25 MB."); return; }
+  var reader = new FileReader();
+  reader.onerror = function () { fail("Could not read that file."); };
+  reader.onload = function () {
+    var src = String(reader.result || "");
+    var img = new Image();
+    img.onerror = function () { fail("That picture could not be opened."); };
+    img.onload = function () {
+      var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      var scale = Math.min(1, 1600 / Math.max(w, h));
+      if (scale === 1 && src.length < 900000) { done(src); return; }
+      var ow = Math.max(1, Math.round(w * scale)), oh = Math.max(1, Math.round(h * scale));
+      var c = document.createElement("canvas");
+      c.width = ow; c.height = oh;
+      var ctx = c.getContext("2d");
+      if (!ctx) { done(src); return; }
+      ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, ow, oh);
+      ctx.drawImage(img, 0, 0, ow, oh);
+      done(c.toDataURL("image/jpeg", 0.86));
+    };
+    img.src = src;
+  };
+  reader.readAsDataURL(file);
+}
+
+function humanSize(n) {
+  var real = Math.round(n * 3 / 4);
+  if (real < 1024) return real + " B";
+  if (real < 1048576) return Math.round(real / 1024) + " KB";
+  return (real / 1048576).toFixed(1) + " MB";
+}
+
+/* A picture the form shows. Asks nothing, so it owns no column. */
+function pictureBlock(q) {
+  if (!q.image) return null;
+  var fig = el("figure", { class: "fs-figure " + (q.imageWidth || "medium") }, [
+    el("img", { src: q.image, alt: q.imageCaption || q.title || "" })
+  ]);
+  if (q.imageCaption) fig.appendChild(el("figcaption", { class: "fs-figcap" }, [q.imageCaption]));
+  if (!q.title) return fig;
+  return el("section", { class: "fs-section" }, [el("h2", { class: "dsp" }, [q.title]), fig]);
+}
+
+/* The respondent's own upload. `capture` opens the camera straight away on a
+   phone, which is the point for an admission form. */
+function photoField(q, str) {
+  if (str) {
+    return el("div", { class: "fs-shot" }, [
+      el("img", { src: str, alt: "The photo you attached" }),
+      el("div", { class: "meta" }, [
+        "Attached · about " + humanSize(str.length),
+        el("br"),
+        el("button", {
+          type: "button",
+          onclick: function () { setAnswer(q.id, ""); }
+        }, ["Remove and choose another"])
+      ])
+    ]);
+  }
+  var input = el("input", {
+    type: "file", accept: "image/*", capture: "environment",
+    onchange: function (e) {
+      var f = e.target.files && e.target.files[0];
+      if (!f) return;
+      box.querySelector("b").textContent = "Adding…";
+      readPicture(f, function (url) { setAnswer(q.id, url); }, function (msg) {
+        box.querySelector("b").textContent = msg;
+      });
+    }
+  });
+  var box = el("label", { class: "fs-drop" }, [
+    el("span", { html: ICON.camera }),
+    el("b", {}, ["Take a photo or choose a file"]),
+    el("s", {}, ["Tap to open the camera, or choose a picture already on this device"]),
+    input
+  ]);
+  return box;
+}
+
 /* ------------------------------------------------------------ question block */
 
 function questionBlock(q, index) {
@@ -374,7 +503,7 @@ function panelSide() {
     if (q.type === "section") {
       if (cur.qs.length) groups.push(cur);
       cur = { title: q.title || "Section", qs: [] };
-    } else cur.qs.push(q);
+    } else if (q.type !== "image") cur.qs.push(q);
   });
   if (cur.qs.length) groups.push(cur);
 
@@ -391,8 +520,8 @@ function panelSide() {
   });
 
   var kids = [
-    logo(),
-    el("h1", { class: "dsp" }, [FORM.title || "Untitled form"]),
+    letterhead({ height: 56, plate: true, onDark: true }),
+    el("h1", { class: "dsp", style: "margin-top:26px" }, [FORM.title || "Untitled form"]),
     FORM.description ? el("p", { class: "fs-desc" }, [FORM.description]) : null
   ];
 
@@ -473,7 +602,7 @@ function send() {
 
 function advance() {
   var qs = questions(), q = qs[step];
-  if (q && q.type !== "section") {
+  if (q && !isDisplayBlock(q.type)) {
     var m = validate(q);
     if (m) { errors = {}; errors[q.id] = m; render(); return; }
   }
@@ -503,9 +632,15 @@ function render() {
 
   var main = el("div", { class: "fs-main" }, []);
 
-  if (STYLE === "register") {
+  if (STYLE !== "panel") {
     main.appendChild(el("header", { class: "fs-head" }, [
-      el("div", { class: "fs-brand" }, [logo(), el("span", {}, ["JWS"])]),
+      el("div", { class: "fs-brand" }, [
+        letterhead({
+          height: STYLE === "cover" ? 58 : 68,
+          plate: STYLE === "cover",
+          onDark: STYLE === "cover"
+        })
+      ]),
       el("h1", { class: "dsp" }, [FORM.title || "Untitled form"]),
       FORM.description ? el("p", { class: "fs-desc" }, [FORM.description]) : null,
       answerable().some(function (q) { return q.required; })
@@ -515,7 +650,7 @@ function render() {
   }
 
   if (closed) {
-    main.appendChild(el("div", { style: STYLE === "register" ? "padding:24px 60px 0" : "padding-bottom:8px" }, [
+    main.appendChild(el("div", { style: STYLE === "panel" ? "padding-bottom:8px" : "padding:24px 0 0" }, [
       el("div", { class: "fs-closed" }, [
         el("span", { html: ICON.alert }),
         el("span", {}, ["This form is closed and is not accepting responses at the moment."])
@@ -527,6 +662,7 @@ function render() {
   var n = 0;
   questions().forEach(function (q) {
     if (q.type === "section") { flow.appendChild(sectionBlock(q)); return; }
+    if (q.type === "image") { var pb = pictureBlock(q); if (pb) flow.appendChild(pb); return; }
     n++;
     flow.appendChild(questionBlock(q, n));
   });
@@ -550,15 +686,17 @@ function renderFocus(closed) {
   var last = step === qs.length - 1;
 
   var index = 0;
-  for (var i = 0; i <= step; i++) if (qs[i].type !== "section") index++;
+  for (var i = 0; i <= step; i++) if (!isDisplayBlock(qs[i].type)) index++;
 
-  var stage = q.type === "section" ? sectionBlock(q) : questionBlock(q, index);
+  var stage = q.type === "section" ? sectionBlock(q)
+            : q.type === "image" ? (pictureBlock(q) || sectionBlock(q))
+            : questionBlock(q, index);
 
   app.appendChild(el("div", { class: "fs fs-focus" }, [
-    el("div", { class: "fs-watermark", html: LOGO }),
+    el("div", { class: "fs-watermark" }, [el("img", { src: "/logo.png", alt: "" })]),
     el("div", { class: "fs-topbar" }, [el("i", { style: "width:" + Math.max(pct, 4) + "%" })]),
     el("div", { class: "fs-crumb" }, [
-      el("span", { class: "l" }, [logo(), el("b", {}, ["JWS"])]),
+      el("span", { class: "l" }, [letterhead({ height: 34, compact: true })]),
       el("span", { class: "lbl" }, [FORM.title || "Untitled form"])
     ]),
     el("div", { class: "fs-main" }, [

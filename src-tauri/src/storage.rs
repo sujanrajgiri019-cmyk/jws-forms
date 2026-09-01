@@ -94,6 +94,21 @@ pub fn sanitize(s: &str) -> String {
     }
 }
 
+/// Where one form's workbook belongs: its own folder if the user picked one on
+/// the Settings tab, otherwise the app-wide responses folder.
+pub fn form_dir(form: &FormDef) -> PathBuf {
+    let custom = form.settings.data_folder.trim();
+    if custom.is_empty() {
+        responses_dir()
+    } else {
+        // Deliberately not created here — this is called for every form on the
+        // home screen, and listing forms should not conjure folders. `submit`
+        // creates it, and a folder on an unplugged drive surfaces as a plain
+        // "could not write" message rather than failing silently.
+        PathBuf::from(custom)
+    }
+}
+
 /// Stable workbook name: readable title + a short id so two forms named the
 /// same never collide, and renaming a form doesn't orphan its responses.
 pub fn excel_path(form: &FormDef) -> PathBuf {
@@ -103,7 +118,78 @@ pub fn excel_path(form: &FormDef) -> PathBuf {
     } else {
         form.title.clone()
     };
-    responses_dir().join(format!("{} ({}).xlsx", sanitize(&title), short))
+    form_dir(form).join(format!("{} ({}).xlsx", sanitize(&title), short))
+}
+
+/// Where uploaded photos for one form are filed, beside its workbook.
+pub fn photos_dir(form: &FormDef) -> PathBuf {
+    let short: String = form.id.chars().take(6).collect();
+    let title = if form.title.trim().is_empty() {
+        "Untitled form".to_string()
+    } else {
+        form.title.clone()
+    };
+    form_dir(form).join(format!("{} ({}) photos", sanitize(&title), short))
+}
+
+/// Pull a `data:image/...;base64,...` cell out to a real file and leave the
+/// file name in the sheet instead.
+///
+/// Base64 of a phone photo is hundreds of kilobytes; dropping that into a cell
+/// would make the workbook unopenable within a term. A file on disk next to the
+/// workbook is also what a school actually wants — you can print it.
+fn extract_photos(form: &FormDef, headers: &[String], values: &[String]) -> Vec<String> {
+    use base64::Engine;
+
+    let mut out: Vec<String> = Vec::with_capacity(values.len());
+    let mut made_dir = false;
+    let dir = photos_dir(form);
+    let stamp = chrono::Local::now().format("%Y-%m-%d %H%M%S").to_string();
+
+    for (i, v) in values.iter().enumerate() {
+        let Some(rest) = v.strip_prefix("data:") else {
+            out.push(v.clone());
+            continue;
+        };
+        let Some((meta, b64)) = rest.split_once(";base64,") else {
+            out.push(v.clone());
+            continue;
+        };
+        if !meta.starts_with("image/") {
+            out.push(v.clone());
+            continue;
+        }
+        let ext = match meta {
+            "image/png" => "png",
+            "image/webp" => "webp",
+            "image/gif" => "gif",
+            _ => "jpg",
+        };
+        let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(b64.as_bytes()) else {
+            out.push(String::new());
+            continue;
+        };
+        if !made_dir {
+            if fs::create_dir_all(&dir).is_err() {
+                out.push(v.clone());
+                continue;
+            }
+            made_dir = true;
+        }
+        let label = headers.get(i).map(|h| sanitize(h)).unwrap_or_else(|| "Photo".into());
+        let mut name = format!("{stamp} — {label}.{ext}");
+        let mut n = 2;
+        while dir.join(&name).exists() {
+            name = format!("{stamp} — {label} ({n}).{ext}");
+            n += 1;
+        }
+        match fs::write(dir.join(&name), &bytes) {
+            Ok(_) => out.push(name),
+            // Keep the data URL rather than silently dropping the answer.
+            Err(_) => out.push(v.clone()),
+        }
+    }
+    out
 }
 
 pub fn load_form(id: &str) -> Result<FormDef> {
@@ -180,10 +266,11 @@ pub fn list_forms() -> Result<Vec<FormSummary>> {
                 form.title.clone()
             },
             description: form.description.clone(),
+            institution: form.settings.institution.clone(),
             question_count: form
                 .questions
                 .iter()
-                .filter(|q| q.kind != "section")
+                .filter(|q| q.kind != "section" && q.kind != "image")
                 .count(),
             response_count: excel::count_rows(&xp),
             updated_at: form.updated_at.clone(),
@@ -217,9 +304,23 @@ pub fn submit(form_id: &str, headers: &[String], values: &[String]) -> Result<us
     if !form.settings.accepting_responses {
         return Err(anyhow!("This form is closed and is not accepting responses."));
     }
+    // The recovery line is written first and keeps the full data URL, so a
+    // photo survives even if the workbook write fails.
     write_recovery(form_id, headers, values);
 
     let path = excel_path(&form);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| {
+            anyhow!(
+                "Could not use the folder {}. Check it still exists.\n\n{e}",
+                parent.display()
+            )
+        })?;
+    }
+
+    let values = extract_photos(&form, headers, values);
+    let values: &[String] = &values;
+
     excel::append_row(&path, headers, values).map_err(|e| {
         anyhow!(
             "Could not write to {}. If the workbook is open in Excel, close it and try again.\n\n{e}",
@@ -251,4 +352,76 @@ pub fn clear_responses(form_id: &str) -> Result<()> {
 
 pub fn path_exists(p: &str) -> bool {
     Path::new(p).exists()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::FormDef;
+
+    fn form_in(dir: &Path) -> FormDef {
+        let mut f = FormDef::default();
+        f.id = "abcdef123456".into();
+        f.title = "Admission 2083".into();
+        f.settings.data_folder = dir.to_string_lossy().to_string();
+        f
+    }
+
+    #[test]
+    fn a_custom_folder_wins_over_the_default() {
+        let tmp = std::env::temp_dir().join("jws-test-folder");
+        let form = form_in(&tmp);
+        let p = excel_path(&form);
+        assert!(p.starts_with(&tmp), "{p:?} should sit in the chosen folder");
+        assert_eq!(
+            p.file_name().unwrap().to_string_lossy(),
+            "Admission 2083 (abcdef).xlsx"
+        );
+    }
+
+    #[test]
+    fn an_empty_folder_falls_back_to_the_app_default() {
+        let mut form = FormDef::default();
+        form.id = "abcdef123456".into();
+        form.settings.data_folder = "   ".into();
+        assert_eq!(form_dir(&form), responses_dir());
+    }
+
+    #[test]
+    fn a_photo_answer_becomes_a_file_and_leaves_its_name_in_the_cell() {
+        let tmp = std::env::temp_dir().join(format!("jws-photo-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let form = form_in(&tmp);
+
+        // 1×1 red PNG.
+        let png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+        let headers = vec!["Timestamp".to_string(), "Photo of the birth certificate".to_string()];
+        let values = vec!["2026-09-01".to_string(), png.to_string()];
+
+        let out = extract_photos(&form, &headers, &values);
+        assert_eq!(out[0], "2026-09-01", "plain cells are untouched");
+        assert!(out[1].ends_with(".png"), "got {}", out[1]);
+        assert!(
+            !out[1].starts_with("data:"),
+            "the data URL must not reach the sheet"
+        );
+        assert!(photos_dir(&form).join(&out[1]).exists(), "the file should be on disk");
+
+        // A second photo in the same second must not overwrite the first.
+        let again = extract_photos(&form, &headers, &values);
+        assert_ne!(again[1], out[1]);
+        assert!(photos_dir(&form).join(&again[1]).exists());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_non_image_data_url_is_left_alone() {
+        let tmp = std::env::temp_dir().join("jws-test-nonimage");
+        let form = form_in(&tmp);
+        let headers = vec!["Note".to_string()];
+        let values = vec!["data:text/plain;base64,aGVsbG8=".to_string()];
+        assert_eq!(extract_photos(&form, &headers, &values), values);
+        assert!(!photos_dir(&form).exists());
+    }
 }

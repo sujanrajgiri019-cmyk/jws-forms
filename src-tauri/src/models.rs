@@ -59,6 +59,13 @@ pub struct Question {
     pub scale: Scale,
     #[serde(default = "five")]
     pub rating_max: i64,
+    /// A picture block's artwork, held as a data URL.
+    #[serde(default)]
+    pub image: String,
+    #[serde(default)]
+    pub image_caption: String,
+    #[serde(default)]
+    pub image_width: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,6 +73,12 @@ pub struct Question {
 pub struct FormSettings {
     #[serde(default = "default_style")]
     pub style: String,
+    /// "school" | "plus2" | "college" — decides the logo on the form.
+    #[serde(default = "default_institution")]
+    pub institution: String,
+    /// Where this form's workbook is written. Empty = the app-wide folder.
+    #[serde(default)]
+    pub data_folder: String,
     #[serde(default = "default_thanks")]
     pub confirmation_message: String,
     #[serde(default = "yes")]
@@ -92,11 +105,16 @@ fn default_accent() -> String {
 fn default_style() -> String {
     "panel".to_string()
 }
+fn default_institution() -> String {
+    "school".to_string()
+}
 
 impl Default for FormSettings {
     fn default() -> Self {
         Self {
             style: default_style(),
+            institution: default_institution(),
+            data_folder: String::new(),
             confirmation_message: default_thanks(),
             allow_multiple: true,
             show_progress: true,
@@ -133,6 +151,7 @@ pub struct FormSummary {
     pub id: String,
     pub title: String,
     pub style: String,
+    pub institution: String,
     pub description: String,
     pub question_count: usize,
     pub response_count: usize,
