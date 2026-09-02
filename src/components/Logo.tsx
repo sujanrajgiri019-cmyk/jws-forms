@@ -80,12 +80,15 @@ export function Letterhead({
     </div>
   );
 
-  // Wide lockups carry their own name — show the artwork, then the contact line
-  // beneath it, and print nothing that the logo already says.
+  // Wide lockups carry their own name, so it is not typeset again. The
+  // tagline IS typeset: inside the artwork it is a few pixels tall and prints
+  // as a grey smudge, and "Affiliated to Tribhuwan University" is exactly the
+  // line a parent needs to be able to read.
   if (info.logoHasName) {
     return (
       <div className={`letterhead wide${compact ? " compact" : ""}${onDark ? " on-dark" : ""}`}>
         <Logo institution={institution} height={compact ? height : height * 1.5} plate={plate} />
+        {!compact && <div className="lh-tagline lh-wide-tag">{info.tagline}</div>}
         {contact}
       </div>
     );

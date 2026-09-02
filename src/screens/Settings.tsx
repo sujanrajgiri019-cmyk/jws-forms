@@ -64,7 +64,7 @@ export default function Settings() {
               </div>
             </div>
             <div className="wrap-row" style={{ marginTop: 12 }}>
-              <Button icon="folder" onClick={() => void api.openPath(dir)}>
+              <Button icon="folder" onClick={() => void api.openPath(dir).catch((e) => toast(`Could not open the folder. ${e}`, "bad"))}>
                 Open folder
               </Button>
               <Button variant="outline" icon="pencil" onClick={() => void changeFolder()}>

@@ -134,6 +134,14 @@ pub struct TunnelStatus {
 fn tunnel_snapshot(srv: &ServerState, tun: &TunnelState) -> TunnelStatus {
     let s = server::status(srv);
     let (state, public_url, message) = tunnel::snapshot(tun);
+    // The tunnel hands back a bare host; give it the same readable path the LAN
+    // link carries, so a parent sees the form's name in the address.
+    let public_url = if public_url.is_empty() {
+        public_url
+    } else {
+        let path = server::slug(&s.form_title);
+        format!("{}/{}", public_url.trim_end_matches('/'), path)
+    };
     // Prefer the public address for the QR — that is the one people scan.
     let qr_target = if public_url.is_empty() { s.url.clone() } else { public_url.clone() };
     TunnelStatus {

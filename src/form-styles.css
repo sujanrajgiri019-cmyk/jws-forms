@@ -713,6 +713,10 @@
   display: flex; flex-direction: column;
 }
 .lh-sep { display: none; }
+/* The wide lockups (+2, College) get their tagline set as real type under the
+   artwork — inside the image it is too small to read and too small to print. */
+.lh-wide-tag { margin-top: 2px; letter-spacing: .11em; }
+.letterhead.wide { gap: 6px; }
 .letterhead.compact { gap: 0; }
 .letterhead.compact .lh-name { font-size: 15px; }
 .letterhead.compact .lh-tagline { font-size: 10px; margin-top: 1px; }
@@ -1395,3 +1399,308 @@
   border: 1px solid var(--ln2); border-radius: 12px; background: var(--o-l); color: var(--o-d);
 }
 .fs-filename { display: block; word-break: break-all; color: var(--k); }
+
+/* ==========================================================================
+   12 — EDITORIAL
+   A magazine feature. A drop-capped opening, a hairline column rule, numbers
+   set in the margin like a contents page. Quiet, expensive-looking, all type.
+   ========================================================================== */
+
+.fs-editorial { flex-direction: column; }
+.fs-editorial .fs-main { max-width: 980px; margin: 0 auto; width: 100%; }
+.fs-editorial .fs-head { padding: 64px 56px 30px; }
+.fs-editorial .fs-head h1 {
+  font-stretch: 74%; font-weight: 800; font-size: clamp(40px, 7vw, 78px);
+  line-height: .95; letter-spacing: -.03em; margin-top: 30px; max-width: 16ch;
+}
+.fs-editorial .fs-desc {
+  margin-top: 20px; max-width: 46ch; font-size: 17px; line-height: 1.7; color: var(--k2);
+}
+/* The first letter of the description is set as a drop cap — the one flourish
+   this style gets, and the thing that makes it read as a feature. */
+.fs-editorial .fs-desc::first-letter {
+  float: left; font-family: var(--display); font-stretch: 74%; font-weight: 800;
+  font-size: 3.1em; line-height: .82; padding: 4px 10px 0 0; color: var(--o);
+}
+.fs-editorial .fs-headnote { margin-top: 26px; color: var(--k3); font-size: 12.5px; }
+
+.fs-editorial .fs-flow { padding: 10px 56px 0; }
+.fs-editorial .fs-q {
+  display: grid; grid-template-columns: 92px 1fr; gap: 0;
+  padding: 30px 0; border-top: 1px solid var(--ln);
+}
+.fs-editorial .fs-q.invalid { background: var(--o-l); }
+.fs-editorial .fs-n {
+  font-family: var(--display); font-stretch: 74%; font-weight: 800; font-size: 15px;
+  color: var(--o); letter-spacing: .04em; padding-top: 4px;
+}
+.fs-editorial .fs-qtitle {
+  font-family: var(--display); font-stretch: 82%; font-weight: 700;
+  font-size: 24px; line-height: 1.22; letter-spacing: -.017em; max-width: 24ch;
+}
+.fs-editorial .fs-help { max-width: 46ch; }
+.fs-editorial .fs-field { margin-top: 18px; max-width: 30rem; }
+.fs-editorial .fs-input, .fs-editorial .fs-select {
+  border: 0; border-bottom: 1.5px solid var(--k4); border-radius: 0;
+  padding: 10px 0; font-size: 17px; background: transparent;
+}
+.fs-editorial .fs-textarea { border: 1px solid var(--ln2); border-radius: 0; padding: 14px 16px; }
+.fs-editorial .fs-input:focus, .fs-editorial .fs-select:focus, .fs-editorial .fs-textarea:focus {
+  outline: none; border-color: var(--o);
+}
+.fs-editorial .fs-choices { gap: 0; }
+.fs-editorial .fs-choice {
+  border: 0; border-bottom: 1px solid var(--ln); border-radius: 0;
+  padding: 13px 0; background: transparent; font-size: 16px;
+}
+.fs-editorial .fs-choice .fs-mark {
+  width: 8px; height: 8px; border-radius: 50%; border: 0; background: var(--ln2);
+}
+.fs-editorial .fs-choice.on { color: var(--o-dd); font-weight: 600; }
+.fs-editorial .fs-choice.on .fs-mark { background: var(--o); box-shadow: 0 0 0 4px var(--o-ll); }
+.fs-editorial .fs-section { padding: 42px 0 0; border-top: 3px solid var(--k); }
+.fs-editorial .fs-section h2 { font-stretch: 78%; font-weight: 800; font-size: 30px; letter-spacing: -.02em; }
+.fs-editorial .fs-foot { padding: 34px 56px 80px; display: flex; gap: 22px; align-items: center; }
+.fs-editorial .fs-submit {
+  background: var(--k); color: var(--w); border-radius: 0; padding: 17px 46px;
+  font-family: var(--display); font-stretch: 78%; font-weight: 700; font-size: 15px;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.fs-editorial .fs-submit:hover { background: var(--o); }
+.fs-editorial .fs-done { padding: 90px 56px; }
+@container fsroot (max-width: 720px) {
+  .fs-editorial .fs-head, .fs-editorial .fs-flow, .fs-editorial .fs-foot { padding-left: 22px; padding-right: 22px; }
+  .fs-editorial .fs-q { grid-template-columns: 1fr; gap: 6px; }
+}
+
+/* ==========================================================================
+   13 — AURORA
+   Soft light. A wash of warm colour behind frosted panels — the modern
+   product-launch look, kept honest by staying on the school's orange.
+   ========================================================================== */
+
+.fs-aurora { flex-direction: column; position: relative; isolation: isolate; }
+.fs-aurora::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(52rem 30rem at 12% -6%, rgba(240,101,34,.30), transparent 62%),
+    radial-gradient(40rem 26rem at 92% 6%, rgba(255,176,110,.34), transparent 60%),
+    radial-gradient(46rem 34rem at 60% 108%, rgba(240,101,34,.17), transparent 62%),
+    linear-gradient(180deg, #FFF9F5 0%, #FFFFFF 55%);
+}
+.fs-aurora .fs-main { max-width: 720px; margin: 0 auto; width: 100%; }
+.fs-aurora .fs-head { padding: 68px 34px 20px; text-align: center; }
+.fs-aurora .fs-head .letterhead { align-items: center; }
+.fs-aurora .fs-head .lh-contact { align-items: center; }
+.fs-aurora .fs-head h1 {
+  font-size: clamp(32px, 5vw, 50px); margin-top: 26px; letter-spacing: -.028em;
+}
+.fs-aurora .fs-desc { color: var(--k2); margin-top: 14px; max-width: 46ch; margin-inline: auto; }
+.fs-aurora .fs-headnote { margin-top: 16px; color: var(--k3); font-size: 12.5px; }
+
+.fs-aurora .fs-flow { padding: 30px 26px 0; display: flex; flex-direction: column; gap: 16px; }
+.fs-aurora .fs-q {
+  background: rgba(255, 255, 255, .72);
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 1px 2px rgba(120, 60, 20, .05), 0 20px 44px -30px rgba(120, 60, 20, .65);
+  border-radius: 20px; padding: 26px 28px;
+}
+.fs-aurora .fs-q.invalid { border-color: var(--o); }
+.fs-aurora .fs-n {
+  font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 10.5px;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--o-d); margin-bottom: 9px;
+}
+.fs-aurora .fs-qtitle { font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 19px; }
+.fs-aurora .fs-field { margin-top: 15px; }
+.fs-aurora .fs-input, .fs-aurora .fs-textarea, .fs-aurora .fs-select {
+  border: 1px solid rgba(240,101,34,.22); border-radius: 14px; padding: 13px 15px;
+  font-size: 16px; background: rgba(255,255,255,.75);
+}
+.fs-aurora .fs-input:focus, .fs-aurora .fs-textarea:focus, .fs-aurora .fs-select:focus {
+  outline: none; border-color: var(--o); background: #fff; box-shadow: 0 0 0 4px rgba(240,101,34,.16);
+}
+.fs-aurora .fs-choices { flex-direction: row; flex-wrap: wrap; gap: 9px; }
+.fs-aurora .fs-choice {
+  border: 1px solid rgba(240,101,34,.24); border-radius: 99px; padding: 10px 18px;
+  background: rgba(255,255,255,.72); width: auto; flex: 0 1 auto; font-size: 14.5px;
+}
+.fs-aurora .fs-mark { display: none; }
+.fs-aurora .fs-choice.on {
+  background: linear-gradient(135deg, var(--o), var(--o-d)); border-color: transparent;
+  color: #fff; font-weight: 600; box-shadow: 0 8px 18px -10px var(--o-d);
+}
+.fs-aurora .fs-section { padding: 22px 0 2px; text-align: center; }
+.fs-aurora .fs-section h2 { font-size: 21px; color: var(--o-dd); }
+.fs-aurora .fs-foot { padding: 30px 26px 80px; display: flex; justify-content: center; gap: 18px; align-items: center; }
+.fs-aurora .fs-submit {
+  background: linear-gradient(135deg, var(--o), var(--o-d)); color: #fff;
+  border-radius: 99px; padding: 16px 44px; font-size: 15.5px;
+  box-shadow: 0 14px 30px -14px var(--o-d);
+}
+.fs-aurora .fs-submit:hover { filter: brightness(1.06); }
+.fs-aurora .fs-done {
+  background: rgba(255,255,255,.78); backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.9); border-radius: 24px; margin: 26px; padding: 64px 30px;
+}
+
+/* ==========================================================================
+   14 — TICKET
+   A boarding pass. Perforated edge, a stub down the side, monospaced
+   reference numbers. Made for events, trips and anything with a gate.
+   ========================================================================== */
+
+.fs-ticket { flex-direction: column; background: #F7F2EE; }
+.fs-ticket .fs-main { max-width: 760px; margin: 0 auto; width: 100%; padding: 40px 24px 70px; }
+.fs-ticket .fs-head {
+  background: var(--w); border-radius: 18px 18px 0 0; padding: 34px 36px 26px;
+  border: 1px solid var(--ln); border-bottom: 0; position: relative;
+}
+.fs-ticket .fs-head::after {
+  /* The perforation. Two notches and a dashed rule, drawn rather than imaged. */
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: repeating-linear-gradient(90deg, var(--ln2) 0 7px, transparent 7px 14px);
+}
+.fs-ticket .fs-head h1 { font-size: clamp(26px, 4vw, 38px); margin-top: 22px; }
+.fs-ticket .fs-desc { color: var(--k2); margin-top: 12px; }
+.fs-ticket .fs-headnote { margin-top: 14px; color: var(--k3); font-size: 12.5px; }
+
+.fs-ticket .fs-flow {
+  background: var(--w); border: 1px solid var(--ln); border-top: 0;
+  padding: 8px 36px 0; position: relative;
+}
+.fs-ticket .fs-flow::before, .fs-ticket .fs-flow::after {
+  content: ""; position: absolute; top: -13px; width: 24px; height: 24px;
+  border-radius: 50%; background: #F7F2EE; border: 1px solid var(--ln);
+}
+.fs-ticket .fs-flow::before { left: -13px; }
+.fs-ticket .fs-flow::after { right: -13px; }
+.fs-ticket .fs-q {
+  display: grid; grid-template-columns: 76px 1fr; gap: 0;
+  padding: 22px 0; border-bottom: 1px dashed var(--ln2);
+}
+.fs-ticket .fs-q.invalid { background: var(--o-l); }
+.fs-ticket .fs-n {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 12px; font-weight: 600; color: var(--o-d); letter-spacing: .1em; padding-top: 3px;
+}
+.fs-ticket .fs-qtitle {
+  font-family: var(--display); font-stretch: 112%; font-weight: 700; font-size: 17px;
+  text-transform: uppercase; letter-spacing: .01em;
+}
+.fs-ticket .fs-field { margin-top: 13px; }
+.fs-ticket .fs-input, .fs-ticket .fs-select {
+  border: 0; border-bottom: 1.5px dashed var(--ln2); border-radius: 0;
+  padding: 10px 2px; font-size: 16px; background: transparent;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+.fs-ticket .fs-textarea { border: 1.5px dashed var(--ln2); border-radius: 8px; padding: 12px 14px; }
+.fs-ticket .fs-input:focus, .fs-ticket .fs-select:focus, .fs-ticket .fs-textarea:focus {
+  outline: none; border-color: var(--o); border-style: solid;
+}
+.fs-ticket .fs-choices { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+.fs-ticket .fs-choice {
+  border: 1.5px dashed var(--ln2); border-radius: 8px; padding: 9px 16px;
+  background: var(--w); width: auto; flex: 0 1 auto;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13.5px;
+}
+.fs-ticket .fs-mark { display: none; }
+.fs-ticket .fs-choice.on { background: var(--o); border-color: var(--o); border-style: solid; color: #fff; font-weight: 700; }
+.fs-ticket .fs-section { padding: 26px 0 6px; }
+.fs-ticket .fs-section h2 {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .16em; color: var(--o-dd);
+}
+.fs-ticket .fs-foot {
+  background: var(--w); border: 1px solid var(--ln); border-top: 0;
+  border-radius: 0 0 18px 18px; padding: 26px 36px 30px;
+  display: flex; align-items: center; gap: 18px;
+}
+.fs-ticket .fs-submit {
+  background: var(--o); color: #fff; border-radius: 8px; padding: 15px 38px;
+  font-family: var(--display); font-stretch: 114%; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .05em; font-size: 14px;
+}
+.fs-ticket .fs-submit:hover { background: var(--o-dd); }
+.fs-ticket .fs-done { background: var(--w); border: 1px solid var(--ln); border-radius: 18px; padding: 66px 30px; }
+@container fsroot (max-width: 680px) {
+  .fs-ticket .fs-head, .fs-ticket .fs-flow, .fs-ticket .fs-foot { padding-left: 20px; padding-right: 20px; }
+  .fs-ticket .fs-q { grid-template-columns: 54px 1fr; }
+}
+
+/* ==========================================================================
+   15 — ATELIER
+   Restrained luxury. Ivory ground, a thin rule box, wide-tracked small caps,
+   enormous whitespace. The one to use when the form must feel expensive.
+   ========================================================================== */
+
+.fs-atelier { flex-direction: column; background: #FBF8F4; }
+.fs-atelier .fs-main {
+  max-width: 720px; margin: 54px auto; width: calc(100% - 44px);
+  background: #FFFDFB; border: 1px solid #E7DED4;
+  box-shadow: 0 30px 80px -60px rgba(90, 60, 30, .8);
+}
+.fs-atelier .fs-head { padding: 66px 66px 34px; text-align: center; }
+.fs-atelier .fs-head .letterhead { align-items: center; }
+.fs-atelier .fs-head .lh-contact { align-items: center; }
+.fs-atelier .fs-head h1 {
+  font-weight: 500; font-stretch: 100%; font-size: clamp(24px, 3.4vw, 34px);
+  letter-spacing: .16em; text-transform: uppercase; margin-top: 30px; line-height: 1.35;
+}
+.fs-atelier .fs-head h1::after {
+  content: ""; display: block; width: 46px; height: 1px;
+  background: var(--o); margin: 22px auto 0;
+}
+.fs-atelier .fs-desc {
+  color: var(--k2); margin-top: 20px; max-width: 44ch; margin-inline: auto;
+  font-size: 14.5px; line-height: 1.85;
+}
+.fs-atelier .fs-headnote { margin-top: 22px; color: var(--k4); font-size: 11.5px; letter-spacing: .1em; }
+
+.fs-atelier .fs-flow { padding: 12px 66px 0; }
+.fs-atelier .fs-q { padding: 30px 0; border-bottom: 1px solid #EFE7DD; }
+.fs-atelier .fs-q.invalid { background: var(--o-l); }
+.fs-atelier .fs-n {
+  font-family: var(--display); font-stretch: 104%; font-weight: 500; font-size: 10px;
+  letter-spacing: .26em; text-transform: uppercase; color: var(--k4); margin-bottom: 10px;
+}
+.fs-atelier .fs-qtitle {
+  font-family: var(--display); font-stretch: 102%; font-weight: 500; font-size: 15.5px;
+  letter-spacing: .1em; text-transform: uppercase; line-height: 1.5;
+}
+.fs-atelier .fs-help { font-size: 13px; margin-top: 7px; letter-spacing: .01em; }
+.fs-atelier .fs-field { margin-top: 20px; }
+.fs-atelier .fs-input, .fs-atelier .fs-select {
+  border: 0; border-bottom: 1px solid #D9CCBE; border-radius: 0;
+  padding: 11px 0; font-size: 16px; background: transparent; letter-spacing: .02em;
+}
+.fs-atelier .fs-textarea { border: 1px solid #E7DED4; border-radius: 0; padding: 14px 16px; background: transparent; }
+.fs-atelier .fs-input:focus, .fs-atelier .fs-select:focus, .fs-atelier .fs-textarea:focus {
+  outline: none; border-color: var(--o);
+}
+.fs-atelier .fs-choices { gap: 0; }
+.fs-atelier .fs-choice {
+  border: 0; border-bottom: 1px solid #F2EBE3; border-radius: 0; padding: 14px 2px;
+  background: transparent; letter-spacing: .06em; font-size: 13.5px; text-transform: uppercase;
+}
+.fs-atelier .fs-choice .fs-mark {
+  width: 7px; height: 7px; border-radius: 0; border: 1px solid #C9B9A8; transform: rotate(45deg);
+}
+.fs-atelier .fs-choice.on { color: var(--o-dd); }
+.fs-atelier .fs-choice.on .fs-mark { background: var(--o); border-color: var(--o); }
+.fs-atelier .fs-section { padding: 42px 0 4px; text-align: center; }
+.fs-atelier .fs-section h2 {
+  font-weight: 500; font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: var(--o-dd);
+}
+.fs-atelier .fs-foot { padding: 40px 66px 62px; display: flex; justify-content: center; gap: 22px; align-items: center; }
+.fs-atelier .fs-submit {
+  background: transparent; color: var(--o-dd); border: 1px solid var(--o);
+  border-radius: 0; padding: 15px 46px; font-size: 12px;
+  letter-spacing: .24em; text-transform: uppercase; font-weight: 600;
+}
+.fs-atelier .fs-submit:hover { background: var(--o); color: #fff; }
+.fs-atelier .fs-done { padding: 90px 40px; }
+@container fsroot (max-width: 680px) {
+  .fs-atelier .fs-main { margin: 20px auto; width: calc(100% - 24px); }
+  .fs-atelier .fs-head, .fs-atelier .fs-flow, .fs-atelier .fs-foot { padding-left: 24px; padding-right: 24px; }
+}

@@ -117,8 +117,12 @@ function letterhead(opts) {
     el("span", {}, [BRAND.phones])
   ]);
   if (BRAND.logoHasName) {
+    // The tagline is typeset rather than left inside the artwork, where it is
+    // a few pixels tall and unreadable on a phone.
     return el("div", { class: cls }, [
-      logoImg(opts.compact ? h : Math.round(h * 1.5), opts.plate), contact
+      logoImg(opts.compact ? h : Math.round(h * 1.5), opts.plate),
+      opts.compact ? null : el("div", { class: "lh-tagline lh-wide-tag" }, [BRAND.tagline]),
+      contact
     ]);
   }
   return el("div", { class: cls }, [

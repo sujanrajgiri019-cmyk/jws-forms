@@ -68,7 +68,12 @@ export default function Responses({ id }: { id: string }) {
           variant="primary"
           icon="excel"
           disabled={!table || table.rows.length === 0}
-          onClick={() => table && void api.openPath(table.path)}
+          onClick={() =>
+            table &&
+            void api
+              .openPath(table.path)
+              .catch((e) => toast(`Could not open the workbook. ${e}`, "bad"))
+          }
         >
           Open in Excel
         </Button>
@@ -110,7 +115,13 @@ export default function Responses({ id }: { id: string }) {
                   <Button
                     size="sm"
                     icon="folder"
-                    onClick={() => void api.openPath(table.path.replace(/[\\/][^\\/]+$/, ""))}
+                    onClick={() =>
+                      void api
+                        .revealPath(table.path)
+                        // Never fail silently: a button that does nothing at all
+                        // is the hardest kind of bug for someone to report.
+                        .catch((e) => toast(`Could not open the folder. ${e}`, "bad"))
+                    }
                   >
                     Show folder
                   </Button>

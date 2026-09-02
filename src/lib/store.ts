@@ -64,6 +64,7 @@ let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let past: FormDef[] = [];
 let future: FormDef[] = [];
 let lastPush = 0;
+let savePending = false;
 
 export const useApp = create<State>((set, get) => {
   /** Mark dirty and schedule an autosave a beat after typing stops. */
@@ -221,24 +222,52 @@ export const useApp = create<State>((set, get) => {
       }, true);
     },
 
+    /**
+     * Write the form to disk.
+     *
+     * Two things this has to get right, and the first version got both wrong:
+     *
+     *   1. A save requested while one is already running must not be dropped.
+     *      It queues instead, so the last thing you typed always lands.
+     *   2. "Saved" is only claimed for the exact content that was written. If
+     *      you kept typing during the write, the form is still dirty afterwards
+     *      and another save follows. Clearing the flag on a snapshot that is
+     *      already stale is how edits silently disappear.
+     */
     async save() {
       const f = get().form;
-      if (!f || get().saving) return;
+      if (!f) return;
+      if (get().saving) {
+        savePending = true;
+        return;
+      }
       clearTimeout(saveTimer);
       set({ saving: true });
+
+      const snapshot = JSON.stringify(f);
       try {
         const stamped = { ...f, updatedAt: new Date().toISOString() };
         await api.saveForm(stamped);
+
+        const now = get().form;
+        const unchanged = now?.id === f.id && JSON.stringify(now) === snapshot;
         set({
-          form: get().form?.id === f.id ? { ...get().form!, updatedAt: stamped.updatedAt } : get().form,
-          dirty: false,
+          form: now?.id === f.id ? { ...now, updatedAt: stamped.updatedAt } : now,
+          dirty: unchanged ? false : true,
           lastSaved: stamped.updatedAt,
           error: null,
         });
       } catch (e) {
+        // Leave `dirty` alone — the content is still only in memory, and the
+        // top bar must keep saying so.
         set({ error: String(e) });
       } finally {
         set({ saving: false });
+      }
+
+      if (savePending || get().dirty) {
+        savePending = false;
+        await get().save();
       }
     },
   };

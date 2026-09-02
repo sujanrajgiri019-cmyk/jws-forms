@@ -58,5 +58,8 @@ jobs:
             will offer the update the next time you open it.
           releaseDraft: false
           prerelease: false
+          # Without this GitHub leaves a release created against an existing tag
+          # unflagged, and latest.json keeps serving the previous version.
+          makeLatest: true
           # Writes latest.json, which is what the in-app updater reads.
           includeUpdaterJson: true

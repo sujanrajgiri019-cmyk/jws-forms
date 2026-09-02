@@ -113,6 +113,35 @@ pub fn stop(state: &ServerState) {
     }
 }
 
+/// A readable path segment made from the form's title.
+///
+/// The host part of a shared address is not ours to choose — a Cloudflare quick
+/// tunnel hands out a random name, and changing that needs a paid domain. What
+/// we CAN control is the path, so the link a parent receives reads
+/// `…trycloudflare.com/jws-student-registration` rather than ending at a
+/// meaningless host. It is cosmetic, and it is most of what people mean when
+/// they ask for a link that looks like the form.
+pub fn slug(title: &str) -> String {
+    let mut out = String::from("jws-");
+    let mut last_dash = true;
+    for c in title.trim().to_lowercase().chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c);
+            last_dash = false;
+        } else if !last_dash {
+            out.push('-');
+            last_dash = true;
+        }
+    }
+    let out = out.trim_end_matches('-').to_string();
+    let out: String = out.chars().take(60).collect();
+    if out.len() <= 4 {
+        "jws-form".to_string()
+    } else {
+        out
+    }
+}
+
 pub fn start(state: &ServerState, form_id: &str, port: u16) -> Result<ServerStatus, String> {
     stop(state);
 
@@ -120,7 +149,10 @@ pub fn start(state: &ServerState, form_id: &str, port: u16) -> Result<ServerStat
     let ip = local_ip_address::local_ip()
         .map(|i| i.to_string())
         .unwrap_or_else(|_| "127.0.0.1".to_string());
-    let url = format!("http://{ip}:{port}");
+    // Served at both `/` and `/<slug>`, so the address can carry the form's
+    // name without anything breaking if someone trims it back to the host.
+    let path = slug(&form.title);
+    let url = format!("http://{ip}:{port}/{path}");
 
     let qr_svg = qrcode::QrCode::new(url.as_bytes())
         .map(|c| {
@@ -139,6 +171,9 @@ pub fn start(state: &ServerState, form_id: &str, port: u16) -> Result<ServerStat
 
     let router = Router::new()
         .route("/", get(page))
+        // axum 0.7 wildcard syntax. `/logo.png`, `/f/…` and `/submit` are more
+        // specific, so they still win over this.
+        .route("/*slug", get(page))
         .route("/logo.png", get(logo))
         .route("/f/archivo.woff2", get(font_display))
         .route("/f/body.woff2", get(font_body))
@@ -280,4 +315,35 @@ fn html_escape(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::slug;
+
+    #[test]
+    fn a_title_becomes_a_readable_path() {
+        assert_eq!(slug("Student Registration"), "jws-student-registration");
+        assert_eq!(slug("Admission Enquiry 2083"), "jws-admission-enquiry-2083");
+    }
+
+    #[test]
+    fn punctuation_and_spacing_collapse_to_single_dashes() {
+        assert_eq!(slug("  +2  Science / Management!! "), "jws-2-science-management");
+        assert_eq!(slug("Sports —— Day"), "jws-sports-day");
+    }
+
+    #[test]
+    fn an_empty_or_symbol_only_title_still_gives_a_usable_path() {
+        assert_eq!(slug(""), "jws-form");
+        assert_eq!(slug("   "), "jws-form");
+        assert_eq!(slug("!!!"), "jws-form");
+    }
+
+    #[test]
+    fn a_very_long_title_is_trimmed() {
+        let long = "a".repeat(200);
+        assert!(slug(&long).len() <= 60);
+    }
 }

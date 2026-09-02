@@ -49,7 +49,11 @@ export type FormStyle =
   | "arena"
   | "prospectus"
   | "terminal"
-  | "community";
+  | "community"
+  | "editorial"
+  | "aurora"
+  | "ticket"
+  | "atelier";
 
 /**
  * The colourway a form wears on top of its style.

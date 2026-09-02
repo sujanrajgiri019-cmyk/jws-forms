@@ -157,6 +157,29 @@ export async function openPath(path: string): Promise<void> {
   await op(path);
 }
 
+/**
+ * Show a file in Explorer with the file itself highlighted.
+ *
+ * This is what "Show folder" should always have used. Handing a *directory* to
+ * `openPath` works on some Windows setups and quietly does nothing on others,
+ * depending on what is registered for the folder verb; `revealItemInDir` is the
+ * API built for the job. If it is unavailable, opening the containing folder is
+ * the fallback rather than nothing happening.
+ */
+export async function revealPath(path: string): Promise<void> {
+  if (!inTauri) {
+    alert(`Would show in Explorer:\n${path}`);
+    return;
+  }
+  const opener = await import("@tauri-apps/plugin-opener");
+  const reveal = (opener as { revealItemInDir?: (p: string) => Promise<void> }).revealItemInDir;
+  if (reveal) {
+    await reveal(path);
+    return;
+  }
+  await opener.openPath(path.replace(/[\\/][^\\/]+$/, ""));
+}
+
 export async function pickFolder(current: string): Promise<string | null> {
   if (!inTauri) return null;
   const { open } = await import("@tauri-apps/plugin-dialog");

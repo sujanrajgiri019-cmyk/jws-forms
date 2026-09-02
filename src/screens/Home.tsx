@@ -19,6 +19,10 @@ const STYLE_LABEL: Record<FormStyle, string> = {
   prospectus: "Prospectus",
   terminal: "Terminal",
   community: "Community",
+  editorial: "Editorial",
+  aurora: "Aurora",
+  ticket: "Ticket",
+  atelier: "Atelier",
 };
 
 export default function Home() {
@@ -49,7 +53,10 @@ export default function Home() {
     go({ name: "builder", id: f.id });
   }
 
-  async function open(id: string, to: "builder" | "fill" | "responses" | "preview" | "share" = "builder") {
+  async function open(
+    id: string,
+    to: "builder" | "fill" | "responses" | "preview" | "share" | "print" = "builder"
+  ) {
     await useApp.getState().openForm(id);
     go({ name: to, id });
   }
@@ -183,9 +190,17 @@ export default function Home() {
                           >
                             <Icon name="copy" /> Make a copy
                           </button>
+                          <button onClick={() => { close(); void open(f.id, "print"); }}>
+                            <Icon name="file" /> Print a blank copy
+                          </button>
                           <button
                             disabled={f.responseCount === 0}
-                            onClick={() => { close(); void api.openPath(f.excelPath); }}
+                            onClick={() => {
+                              close();
+                              void api
+                                .openPath(f.excelPath)
+                                .catch((e) => toast(`Could not open the workbook. ${e}`, "bad"));
+                            }}
                           >
                             <Icon name="excel" /> Open Excel file
                           </button>

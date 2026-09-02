@@ -17,6 +17,10 @@ const STYLE_NAMES: Record<FormStyle, string> = {
   prospectus: "Prospectus",
   terminal: "Terminal",
   community: "Community",
+  editorial: "Editorial",
+  aurora: "Aurora",
+  ticket: "Ticket",
+  atelier: "Atelier",
 };
 
 /**

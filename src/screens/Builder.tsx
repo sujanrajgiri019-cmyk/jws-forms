@@ -32,7 +32,7 @@ import type { FormStyle, QuestionType, TextStyle, TunnelStatus } from "../types"
 type Tab = "questions" | "design" | "settings";
 
 export default function Builder({ id }: { id: string }) {
-  const { form, openForm, patch, patchSettings, reorder, saving, dirty, go, undo, redo, canUndo, canRedo } =
+  const { form, openForm, patch, patchSettings, reorder, saving, dirty, go, save, undo, redo, canUndo, canRedo } =
     useApp();
   const [tab, setTab] = useState<Tab>("questions");
   const [keys, setKeys] = useState(false);
@@ -93,6 +93,18 @@ export default function Builder({ id }: { id: string }) {
           )}
         </span>
         <span className="grow" />
+        <Button
+          icon="check"
+          variant={dirty ? "primary" : undefined}
+          disabled={saving || !dirty}
+          onClick={() => void save()}
+          title="Save now (Ctrl+S)"
+        >
+          {dirty ? "Save" : "Saved"}
+        </Button>
+        <Button icon="file" onClick={() => go({ name: "print", id })} title="Print a blank copy">
+          Print
+        </Button>
         <Button
           icon="back"
           aria-label="Undo (Ctrl+Z)"
@@ -449,6 +461,57 @@ const STYLES: { id: FormStyle; name: string; note: string; thumb: JSX.Element }[
       </div>
     ),
   },
+  {
+    id: "editorial",
+    name: "Editorial",
+    note: "A magazine feature. Drop cap, condensed headlines, all type.",
+    thumb: (
+      <div className="th-edt">
+        <em>A</em>
+        <div className="hd" />
+        <div className="rw"><b>01</b><s /></div>
+        <div className="rw"><b>02</b><s style={{ width: "52%" }} /></div>
+      </div>
+    ),
+  },
+  {
+    id: "aurora",
+    name: "Aurora",
+    note: "Soft light behind frosted glass panels. Modern and expensive.",
+    thumb: (
+      <div className="th-aur">
+        <div className="glass"><i /><s /></div>
+        <div className="glass"><i /><s style={{ width: "58%" }} /></div>
+      </div>
+    ),
+  },
+  {
+    id: "ticket",
+    name: "Ticket",
+    note: "A boarding pass — perforated edge, monospaced references.",
+    thumb: (
+      <div className="th-tkt">
+        <div className="top"><i /></div>
+        <div className="perf" />
+        <div className="bot"><s /><s style={{ width: "56%" }} /></div>
+      </div>
+    ),
+  },
+  {
+    id: "atelier",
+    name: "Atelier",
+    note: "Restrained luxury. Ivory, hairline rules, wide-tracked capitals.",
+    thumb: (
+      <div className="th-atl">
+        <div className="box">
+          <i />
+          <em />
+          <s />
+          <s style={{ width: "48%" }} />
+        </div>
+      </div>
+    ),
+  },
 ];
 
 function StylePicker() {
@@ -550,6 +613,7 @@ function FormSettingsPanel() {
             value={s.confirmationMessage}
             onChange={(e) => patchSettings({ confirmationMessage: e.target.value })}
           />
+          <SaveRow />
         </div>
       </div>
     </div>
@@ -590,7 +654,14 @@ function DataFolderPanel() {
         <Button variant="outline" icon="folder" onClick={() => void choose()}>
           Choose a folder
         </Button>
-        <Button icon="folder" onClick={() => void api.openPath(custom || appDefault)}>
+        <Button
+          icon="folder"
+          onClick={() =>
+            void api
+              .openPath(custom || appDefault)
+              .catch((e) => toast(`Could not open the folder. ${e}`, "bad"))
+          }
+        >
           Open it
         </Button>
         {custom && (
@@ -1375,6 +1446,45 @@ function PrintPanel({ id }: { id: string }) {
         You choose colour or black-and-white on the next screen, then use your
         browser's own print dialog — which is also where “Save as PDF” lives.
       </p>
+    </div>
+  );
+}
+
+
+/* ==========================================================================
+   SAVE
+   ========================================================================== */
+
+/**
+ * An explicit save, next to the settings people were least sure about.
+ *
+ * Everything autosaves a beat after you stop typing, and always did. But a
+ * settings box with no button beside it gives no signal that anything happened,
+ * and "did that save?" is a reasonable thing to wonder. This says so plainly
+ * and lets you force it.
+ */
+function SaveRow() {
+  const { saving, dirty, lastSaved, save } = useApp();
+  return (
+    <div className="wrap-row" style={{ marginTop: 12 }}>
+      <Button
+        size="sm"
+        variant={dirty ? "primary" : undefined}
+        icon="check"
+        disabled={saving || !dirty}
+        onClick={() => void save()}
+      >
+        {saving ? "Saving…" : dirty ? "Save now" : "Saved"}
+      </Button>
+      <span className="hint" style={{ margin: 0 }}>
+        {saving
+          ? "Writing to disk…"
+          : dirty
+          ? "Not written to disk yet — it saves on its own a moment after you stop typing."
+          : lastSaved
+          ? `Saved at ${new Date(lastSaved).toLocaleTimeString()}`
+          : "Saved"}
+      </span>
     </div>
   );
 }
