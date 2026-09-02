@@ -1033,3 +1033,11 @@ table.data td { font-variant-numeric: tabular-nums; }
 .th-atl .box i { height: 8px; width: 8px; border-radius: 2px; background: var(--o-500); }
 .th-atl .box em { height: 1px; width: 30%; background: var(--o-500); display: block; }
 .th-atl .box s { height: 1px; width: 74%; background: #E0D4C6; text-decoration: none; display: block; }
+
+/* a filled-in answer on the paper copy */
+.paper-given {
+  margin: 12px 0 0; font-weight: 600; font-size: 14.5px;
+  border-bottom: 1px solid #C9BAB0; padding-bottom: 6px; min-height: 22px;
+  white-space: pre-wrap; word-break: break-word;
+}
+.paper-opts .box.ticked, .paper-opts .circle.ticked { background: #201D1B; box-shadow: inset 0 0 0 2px #fff; }

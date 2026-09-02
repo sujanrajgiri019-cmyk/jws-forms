@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/Icons";
 import { Letterhead } from "../components/Logo";
 import { Button } from "../components/ui";
-import { isDisplayBlock, isUpload } from "../lib/answers";
+import { headersFor, isDisplayBlock, isUpload } from "../lib/answers";
+import * as api from "../lib/api";
 import { styleToCss } from "../lib/richtext";
 import { useApp } from "../lib/store";
 import type { Question } from "../types";
@@ -19,9 +20,34 @@ import type { Question } from "../types";
  * screen a branch hides them; on paper the person needs to see the instruction
  * and skip past it themselves.
  */
-export default function Print({ id }: { id: string }) {
+export default function Print({ id, row }: { id: string; row?: number }) {
   const { form, openForm, go } = useApp();
   const [mono, setMono] = useState(false);
+  const [filled, setFilled] = useState<Record<string, string> | null>(null);
+
+  // When a row number is given, this is somebody's submitted answers printed
+  // onto the same sheet, rather than a blank one to write on.
+  useEffect(() => {
+    if (row === undefined) {
+      setFilled(null);
+      return;
+    }
+    let alive = true;
+    void api
+      .getResponses(id)
+      .then((t) => {
+        if (!alive) return;
+        const r = t.rows[row];
+        if (!r) return;
+        const map: Record<string, string> = {};
+        t.headers.forEach((h, i) => (map[h] = r[i] ?? ""));
+        setFilled(map);
+      })
+      .catch(() => setFilled(null));
+    return () => {
+      alive = false;
+    };
+  }, [id, row]);
 
   useEffect(() => {
     void openForm(id);
@@ -30,12 +56,14 @@ export default function Print({ id }: { id: string }) {
   if (!form || form.id !== id) return <div className="center-fill">Opening form…</div>;
 
   let n = 0;
+  const answerFor = (q: Question): string =>
+    filled ? filled[headersFor(q)[0] ?? q.title] ?? "" : "";
 
   return (
     <>
       <div className="topbar noprint">
         <Button icon="back" aria-label="Back to editing" onClick={() => go({ name: "builder", id })} />
-        <h1>Printable copy</h1>
+        <h1>{filled ? "Printing a response" : "Printable copy"}</h1>
         <span className="grow" />
         <div className="seg">
           <button className={mono ? "" : "on"} onClick={() => setMono(false)}>
@@ -75,7 +103,11 @@ export default function Print({ id }: { id: string }) {
                 </p>
               )}
               <div className="paper-meta">
-                <span>Date: ______________________</span>
+                {filled?.["Timestamp"] ? (
+                  <span>Received: {filled["Timestamp"]}</span>
+                ) : (
+                  <span>Date: ______________________</span>
+                )}
                 <span>Received by: ______________________</span>
               </div>
             </header>
@@ -98,7 +130,9 @@ export default function Print({ id }: { id: string }) {
                 ) : null;
               }
               n += 1;
-              return <PaperQuestion q={q} index={n} key={q.id} />;
+              return (
+                <PaperQuestion q={q} index={n} key={q.id} answer={answerFor(q)} />
+              );
             })}
 
             <footer className="paper-foot">
@@ -112,7 +146,15 @@ export default function Print({ id }: { id: string }) {
   );
 }
 
-function PaperQuestion({ q, index }: { q: Question; index: number }) {
+function PaperQuestion({
+  q,
+  index,
+  answer,
+}: {
+  q: Question;
+  index: number;
+  answer: string;
+}) {
   return (
     <section className="paper-q">
       <div className="paper-n">{String(index).padStart(2, "0")}</div>
@@ -131,14 +173,47 @@ function PaperQuestion({ q, index }: { q: Question; index: number }) {
             <Icon name="alert" size={12} /> Only answer this if it applies to you.
           </p>
         ) : null}
-        <PaperAnswer q={q} />
+        <PaperAnswer q={q} answer={answer} />
       </div>
     </section>
   );
 }
 
-/** The space to write in — shaped like the question rather than a generic box. */
-function PaperAnswer({ q }: { q: Question }) {
+/**
+ * The answer area.
+ *
+ * With no answer this is space shaped like the question — ruled lines, empty
+ * boxes, an empty grid. With one, the same shapes are filled in, so a printed
+ * response and a printed blank are visibly the same document.
+ */
+function PaperAnswer({ q, answer }: { q: Question; answer: string }) {
+  const given = answer.trim();
+
+  if (given) {
+    switch (q.type) {
+      case "multiple_choice":
+      case "checkboxes": {
+        const chosen = given.split(",").map((x) => x.trim().toLowerCase());
+        return (
+          <ul className="paper-opts">
+            {q.options.map((o) => (
+              <li key={o.id}>
+                <span
+                  className={`${q.type === "checkboxes" ? "box" : "circle"}${
+                    chosen.includes(o.label.trim().toLowerCase()) ? " ticked" : ""
+                  }`}
+                />
+                {o.label || "…"}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+      default:
+        return <p className="paper-given">{given}</p>;
+    }
+  }
+
   switch (q.type) {
     case "paragraph":
       return (

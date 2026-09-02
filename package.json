@@ -1,7 +1,7 @@
 {
   "name": "jws-forms",
   "private": true,
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "JWS Forms — a school-branded form builder for Windows",
   "type": "module",
   "scripts": {

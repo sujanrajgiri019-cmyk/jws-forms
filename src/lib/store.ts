@@ -10,7 +10,7 @@ export type View =
   | { name: "preview"; id: string }
   | { name: "responses"; id: string }
   | { name: "share"; id: string }
-  | { name: "print"; id: string }
+  | { name: "print"; id: string; row?: number }
   | { name: "settings" };
 
 interface State {

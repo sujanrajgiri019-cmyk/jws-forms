@@ -158,7 +158,7 @@ export default function App() {
           {view.name === "fill" && <Fill id={view.id} />}
           {view.name === "responses" && <Responses id={view.id} />}
           {view.name === "share" && <Share id={view.id} />}
-          {view.name === "print" && <Print id={view.id} />}
+          {view.name === "print" && <Print id={view.id} row={view.row} />}
           {view.name === "settings" && <Settings />}
         </div>
       </div>

@@ -961,31 +961,43 @@
    PRINT — the slip alone, nothing else
    ========================================================================== */
 
+/*
+ * Every rule here is gated on `body.slip-on`, which the confirmation screen
+ * adds only while an acknowledgement slip is on screen.
+ *
+ * It was not gated before, and that was a real bug: "hide everything except the
+ * slip" applied to every page in the app, so printing the blank paper copy —
+ * which has no slip on it — produced a sheet of nothing.
+ */
 @media print {
+  body.slip-on { background: #fff !important; }
   @page { size: A5; margin: 10mm; }
-  html, body { background: #fff !important; }
+
   /* Collapse the app's full-height layout, or the hidden-but-still-tall page
      trails a blank sheet out of the printer behind the slip. */
-  html, body, #app, #root, .scroll, .fs, .fs-main, .fs-side, .fs-flow, .fs-done {
+  body.slip-on, body.slip-on #app, body.slip-on #root, body.slip-on .scroll,
+  body.slip-on .fs, body.slip-on .fs-main, body.slip-on .fs-side,
+  body.slip-on .fs-flow, body.slip-on .fs-done {
     height: auto !important; min-height: 0 !important; max-height: none !important;
     overflow: visible !important; position: static !important;
     display: block !important; padding: 0 !important; margin: 0 !important;
   }
-  /* Hide everything, then walk the slip's ancestors back into view. This is
-     the only approach that survives the app chrome, the phone page and the
-     preview frame without three separate rules. */
-  body * { visibility: hidden !important; }
-  #jws-slip, #jws-slip * { visibility: visible !important; }
-  #jws-slip {
+  /* Hide everything, then walk the slip's ancestors back into view. */
+  body.slip-on * { visibility: hidden !important; }
+  body.slip-on #jws-slip, body.slip-on #jws-slip * { visibility: visible !important; }
+  body.slip-on #jws-slip {
     position: absolute; left: 0; top: 0; width: 100%; max-width: none;
     margin: 0; border: 0; border-top: 3px solid #000; box-shadow: none;
   }
   /* Decorative absolutes would otherwise hang below the slip and push a blank
      sheet out of the printer: their positioning ancestor has just been reset. */
-  .fs-side::after, .fs-watermark, .fs-topbar, .fs-nav { display: none !important; }
-  #jws-slip .slip-token { border-color: #000; background: transparent; }
-  #jws-slip .slip-token b, #jws-slip .slip-token .lbl { color: #000; }
-  .fs-slipacts, .topbar, .tabs, .rail { display: none !important; }
+  body.slip-on .fs-side::after, body.slip-on .fs-watermark,
+  body.slip-on .fs-topbar, body.slip-on .fs-nav { display: none !important; }
+  body.slip-on #jws-slip .slip-token { border-color: #000; background: transparent; }
+  body.slip-on #jws-slip .slip-token b,
+  body.slip-on #jws-slip .slip-token .lbl { color: #000; }
+  body.slip-on .fs-slipacts, body.slip-on .topbar,
+  body.slip-on .tabs, body.slip-on .rail { display: none !important; }
 }
 
 /* ==========================================================================

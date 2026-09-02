@@ -1172,6 +1172,7 @@ function paintErrors() {
 
 function render() {
   var closed = settings().acceptingResponses === false;
+  document.body.classList.remove("slip-on");
   app.innerHTML = "";
 
   if (STYLE === "focus") { renderFocus(closed); return; }
@@ -1286,6 +1287,9 @@ function renderFocus(closed) {
 function renderDone(token) {
   app.innerHTML = "";
   var slip = (settings().receipt || {}).enabled;
+  // The slip's print stylesheet hides everything else, so it is only switched
+  // on while a slip is on screen.
+  document.body.classList.toggle("slip-on", !!slip);
   var again = settings().allowMultiple !== false
     ? el("button", {
         class: slip ? "fs-clear" : "fs-submit", type: "button",

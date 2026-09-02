@@ -142,6 +142,7 @@ export default function Responses({ id }: { id: string }) {
                       {table.headers.map((h, i) => (
                         <th key={i}>{h}</th>
                       ))}
+                      <th style={{ width: 44 }} aria-label="Print" />
                     </tr>
                   </thead>
                   <tbody>
@@ -153,6 +154,19 @@ export default function Responses({ id }: { id: string }) {
                             {r[c] ?? ""}
                           </td>
                         ))}
+                        <td style={{ textAlign: "right" }}>
+                          {/* The row index here is the index in the *unfiltered*
+                              table, so printing works while a search is active. */}
+                          <Button
+                            size="sm"
+                            icon="file"
+                            aria-label={`Print response ${i + 1}`}
+                            title="Print this response"
+                            onClick={() =>
+                              go({ name: "print", id, row: table.rows.indexOf(r) })
+                            }
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>

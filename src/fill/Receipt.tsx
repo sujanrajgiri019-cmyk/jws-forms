@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Logo } from "../components/Logo";
 import { headersFor, valuesFor } from "../lib/answers";
 import { ADDRESS, PHONE_LINE, institutionOf } from "../lib/brand";
@@ -26,6 +27,17 @@ export function Receipt({
 }) {
   const r = form.settings.receipt;
   const info = institutionOf(form.settings.institution);
+
+  /**
+   * The print stylesheet for the slip hides everything else on the page, so it
+   * must only be live while a slip is actually on screen. Ungated, it turned
+   * every other print in the app — the blank paper copy especially — into a
+   * sheet of nothing.
+   */
+  useEffect(() => {
+    document.body.classList.add("slip-on");
+    return () => document.body.classList.remove("slip-on");
+  }, []);
 
   const lines = r.fields
     .map((id) => form.questions.find((q) => q.id === id))
