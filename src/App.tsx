@@ -11,6 +11,7 @@ import Fill from "./screens/Fill";
 import Preview from "./screens/Preview";
 import Responses from "./screens/Responses";
 import Share from "./screens/Share";
+import Print from "./screens/Print";
 import Settings from "./screens/Settings";
 
 /** One icon in the left rail, with a hover label. */
@@ -157,6 +158,7 @@ export default function App() {
           {view.name === "fill" && <Fill id={view.id} />}
           {view.name === "responses" && <Responses id={view.id} />}
           {view.name === "share" && <Share id={view.id} />}
+          {view.name === "print" && <Print id={view.id} />}
           {view.name === "settings" && <Settings />}
         </div>
       </div>

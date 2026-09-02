@@ -133,12 +133,60 @@ pub fn photos_dir(form: &FormDef) -> PathBuf {
     form_dir(form).join(format!("{} ({}) photos", sanitize(&title), short))
 }
 
-/// Pull a `data:image/...;base64,...` cell out to a real file and leave the
-/// file name in the sheet instead.
+/// The file name a respondent's upload arrived with, if it carried one.
 ///
-/// Base64 of a phone photo is hundreds of kilobytes; dropping that into a cell
-/// would make the workbook unopenable within a term. A file on disk next to the
-/// workbook is also what a school actually wants — you can print it.
+/// The frontend sends `name=<urlencoded>|data:...` so an uploaded PDF keeps the
+/// name the parent gave it. A bare data URL is still accepted — that is what an
+/// older build submits.
+fn split_named(v: &str) -> (Option<String>, &str) {
+    let Some(rest) = v.strip_prefix("name=") else {
+        return (None, v);
+    };
+    let Some((raw, data)) = rest.split_once('|') else {
+        return (None, v);
+    };
+    let decoded = percent_encoding::percent_decode_str(raw)
+        .decode_utf8()
+        .map(|c| c.to_string())
+        .unwrap_or_else(|_| raw.to_string());
+    (Some(decoded), data)
+}
+
+fn extension_for(meta: &str, name: &Option<String>) -> String {
+    // The name the person gave it wins — a .docx should stay a .docx even
+    // though its MIME type is a mouthful.
+    if let Some(n) = name {
+        if let Some(ext) = Path::new(n).extension().and_then(|e| e.to_str()) {
+            if !ext.is_empty() && ext.len() <= 5 {
+                return ext.to_ascii_lowercase();
+            }
+        }
+    }
+    match meta {
+        "image/png" => "png",
+        "image/webp" => "webp",
+        "image/gif" => "gif",
+        "image/jpeg" => "jpg",
+        "application/pdf" => "pdf",
+        "video/mp4" => "mp4",
+        "video/webm" => "webm",
+        "audio/mpeg" => "mp3",
+        "audio/wav" | "audio/x-wav" => "wav",
+        "audio/ogg" => "ogg",
+        "text/plain" => "txt",
+        "text/csv" => "csv",
+        _ => "bin",
+    }
+    .to_string()
+}
+
+/// Pull an attached file out of its cell and write it to disk, leaving the file
+/// name in the sheet instead.
+///
+/// Base64 of a phone photo is hundreds of kilobytes and a short video is tens of
+/// megabytes; either one in a cell would make the workbook unopenable within a
+/// term. A file on disk next to the workbook is also what a school actually
+/// wants — you can open it, print it, attach it to an email.
 fn extract_photos(form: &FormDef, headers: &[String], values: &[String]) -> Vec<String> {
     use base64::Engine;
 
@@ -148,7 +196,8 @@ fn extract_photos(form: &FormDef, headers: &[String], values: &[String]) -> Vec<
     let stamp = chrono::Local::now().format("%Y-%m-%d %H%M%S").to_string();
 
     for (i, v) in values.iter().enumerate() {
-        let Some(rest) = v.strip_prefix("data:") else {
+        let (given_name, payload) = split_named(v);
+        let Some(rest) = payload.strip_prefix("data:") else {
             out.push(v.clone());
             continue;
         };
@@ -156,16 +205,13 @@ fn extract_photos(form: &FormDef, headers: &[String], values: &[String]) -> Vec<
             out.push(v.clone());
             continue;
         };
-        if !meta.starts_with("image/") {
+        // Anything with a MIME type and base64 body is a file worth saving —
+        // pictures, PDFs, recordings alike.
+        if meta.is_empty() {
             out.push(v.clone());
             continue;
         }
-        let ext = match meta {
-            "image/png" => "png",
-            "image/webp" => "webp",
-            "image/gif" => "gif",
-            _ => "jpg",
-        };
+        let ext = extension_for(meta, &given_name);
         let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(b64.as_bytes()) else {
             out.push(String::new());
             continue;
@@ -177,7 +223,18 @@ fn extract_photos(form: &FormDef, headers: &[String], values: &[String]) -> Vec<
             }
             made_dir = true;
         }
-        let label = headers.get(i).map(|h| sanitize(h)).unwrap_or_else(|| "Photo".into());
+        let label = match &given_name {
+            // Keep the person's own file name, minus its extension — it usually
+            // says more than the column heading does.
+            Some(n) => {
+                let stem = Path::new(n)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or(n);
+                sanitize(stem)
+            }
+            None => headers.get(i).map(|h| sanitize(h)).unwrap_or_else(|| "File".into()),
+        };
         let mut name = format!("{stamp} — {label}.{ext}");
         let mut n = 2;
         while dir.join(&name).exists() {
@@ -428,12 +485,48 @@ mod tests {
     }
 
     #[test]
-    fn a_non_image_data_url_is_left_alone() {
-        let tmp = std::env::temp_dir().join("jws-test-nonimage");
+    fn a_cell_that_is_not_a_data_url_is_left_alone() {
+        let tmp = std::env::temp_dir().join("jws-test-plain");
         let form = form_in(&tmp);
         let headers = vec!["Note".to_string()];
-        let values = vec!["data:text/plain;base64,aGVsbG8=".to_string()];
+        let values = vec!["just some typed text".to_string()];
         assert_eq!(extract_photos(&form, &headers, &values), values);
         assert!(!photos_dir(&form).exists());
+    }
+
+    #[test]
+    fn a_named_upload_keeps_its_own_name_and_extension() {
+        let tmp = std::env::temp_dir().join(format!("jws-named-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let form = form_in(&tmp);
+
+        let headers = vec!["Birth certificate".to_string()];
+        let values = vec![
+            "name=Asha%20birth%20cert.pdf|data:application/pdf;base64,JVBERi0xLjQK".to_string(),
+        ];
+
+        let out = extract_photos(&form, &headers, &values);
+        assert!(out[0].ends_with(".pdf"), "got {}", out[0]);
+        assert!(
+            out[0].contains("Asha birth cert"),
+            "the person's own file name should survive: {}",
+            out[0]
+        );
+        assert!(photos_dir(&form).join(&out[0]).exists());
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn an_unnamed_upload_falls_back_to_the_column_heading() {
+        let tmp = std::env::temp_dir().join(format!("jws-unnamed-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let form = form_in(&tmp);
+        let headers = vec!["Voice note".to_string()];
+        let values = vec!["data:audio/mpeg;base64,SUQzBAA=".to_string()];
+
+        let out = extract_photos(&form, &headers, &values);
+        assert!(out[0].contains("Voice note"), "got {}", out[0]);
+        assert!(out[0].ends_with(".mp3"), "got {}", out[0]);
+        let _ = fs::remove_dir_all(&tmp);
     }
 }

@@ -8,6 +8,7 @@ import { colorwayClass } from "../lib/colorway";
 import { Field } from "./Field";
 import { Receipt } from "./Receipt";
 import { markQuiz } from "../lib/quiz";
+import { styleToCss } from "../lib/richtext";
 import type { Answers, AnswerValue, FormDef, Question } from "../types";
 
 /**
@@ -194,6 +195,11 @@ export function FormRenderer({
       <div className="fs-main">
         {!HAS_SIDE.has(style) && (
           <header className="fs-head">
+            {form.settings.banner && (
+              <div className={`fs-banner ${form.settings.bannerHeight || "medium"}`}>
+                <img src={form.settings.banner} alt="" />
+              </div>
+            )}
             <div className="fs-brand">
               {/* Cover sets the letterhead on orange, so the artwork needs a
                   white plate behind it and light text beside it. */}
@@ -204,8 +210,14 @@ export function FormRenderer({
                 onDark={style === "cover"}
               />
             </div>
-            <h1 className="dsp">{form.title || "Untitled form"}</h1>
-            {form.description && <p className="fs-desc">{form.description}</p>}
+            <h1 className="dsp" style={styleToCss(form.settings.titleStyle)}>
+              {form.title || "Untitled form"}
+            </h1>
+            {form.description && (
+              <p className="fs-desc" style={styleToCss(form.settings.descriptionStyle)}>
+                {form.description}
+              </p>
+            )}
             {answerable.some((q) => q.required) && (
               <p className="fs-headnote">
                 <span className="fs-req">*</span> Required
@@ -365,11 +377,15 @@ function QuestionBlock({
     <section className={`fs-q${error ? " invalid" : ""}`} data-q={q.id}>
       <div className="fs-n">{String(index).padStart(2, "0")}</div>
       <div className="fs-qbody">
-        <h3 className="fs-qtitle">
+        <h3 className="fs-qtitle" style={styleToCss(q.titleStyle)}>
           {q.title || "Untitled question"}
           {q.required && <span className="fs-req">*</span>}
         </h3>
-        {q.description && <p className="fs-help">{q.description}</p>}
+        {q.description && (
+          <p className="fs-help" style={styleToCss(q.helpStyle)}>
+            {q.description}
+          </p>
+        )}
         <div className="fs-field">
           <Field q={q} value={value} onChange={onChange} style={style} />
         </div>
@@ -425,9 +441,20 @@ function PanelSide({
 
   return (
     <aside className="fs-side">
+      {form.settings.banner && (
+        <div className={`fs-banner ${form.settings.bannerHeight || "medium"}`}>
+          <img src={form.settings.banner} alt="" />
+        </div>
+      )}
       <Letterhead institution={form.settings.institution} height={56} plate onDark />
-      <h1 className="dsp" style={{ marginTop: 26 }}>{form.title || "Untitled form"}</h1>
-      {form.description && <p className="fs-desc">{form.description}</p>}
+      <h1 className="dsp" style={{ marginTop: 26, ...styleToCss(form.settings.titleStyle) }}>
+        {form.title || "Untitled form"}
+      </h1>
+      {form.description && (
+        <p className="fs-desc" style={styleToCss(form.settings.descriptionStyle)}>
+          {form.description}
+        </p>
+      )}
 
       {groups.length > 1 && (
         <div className="fs-steps">
@@ -579,11 +606,15 @@ function FocusFlow({
               <div className="fs-n">
                 Question {numberOf(q.id)} of {total}
               </div>
-              <h3 className="fs-qtitle">
+              <h3 className="fs-qtitle" style={styleToCss(q.titleStyle)}>
                 {q.title || "Untitled question"}
                 {q.required && <span className="fs-req">*</span>}
               </h3>
-              {q.description && <p className="fs-help">{q.description}</p>}
+              {q.description && (
+                <p className="fs-help" style={styleToCss(q.helpStyle)}>
+                  {q.description}
+                </p>
+              )}
               <div className="fs-field">
                 <Field
                   q={q}

@@ -16,25 +16,35 @@ import {
 } from "@dnd-kit/sortable";
 import { Icon } from "../components/Icons";
 import { Letterhead } from "../components/Logo";
-import { Button, Menu, Spinner, Toggle, useToast } from "../components/ui";
+import { Button, Menu, Modal, Spinner, Toggle, useToast } from "../components/ui";
 import { QuestionCard } from "../builder/QuestionCard";
 import { TYPES, TYPE_GROUPS, isDisplay } from "../lib/questionTypes";
 import { allHeaders } from "../lib/answers";
 import { INSTITUTION_LIST } from "../lib/brand";
 import { COLORWAYS } from "../lib/colorway";
+import { TEXT_COLORS, isStyled, styleToCss } from "../lib/richtext";
+import { pictureFromClipboard, pictureFromDrop, readPicture } from "../lib/image";
+import { SHORTCUTS, useEditorShortcuts } from "../lib/shortcuts";
 import { useApp } from "../lib/store";
 import * as api from "../lib/api";
-import type { FormStyle, QuestionType, TunnelStatus } from "../types";
+import type { FormStyle, QuestionType, TextStyle, TunnelStatus } from "../types";
 
 type Tab = "questions" | "design" | "settings";
 
 export default function Builder({ id }: { id: string }) {
-  const { form, openForm, patch, addQuestion, reorder, saving, dirty, go, selected } = useApp();
+  const { form, openForm, patch, patchSettings, reorder, saving, dirty, go, undo, redo, canUndo, canRedo } =
+    useApp();
   const [tab, setTab] = useState<Tab>("questions");
+  const [keys, setKeys] = useState(false);
 
   useEffect(() => {
     void openForm(id);
   }, [id, openForm]);
+
+  useEditorShortcuts(
+    useCallback(() => setKeys(true), []),
+    useCallback(() => go({ name: "preview", id }), [go, id])
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -83,6 +93,20 @@ export default function Builder({ id }: { id: string }) {
           )}
         </span>
         <span className="grow" />
+        <Button
+          icon="back"
+          aria-label="Undo (Ctrl+Z)"
+          title="Undo (Ctrl+Z)"
+          disabled={!canUndo}
+          onClick={undo}
+        />
+        <Button
+          icon="forward"
+          aria-label="Redo (Ctrl+Y)"
+          title="Redo (Ctrl+Y)"
+          disabled={!canRedo}
+          onClick={redo}
+        />
         <Button icon="eye" onClick={() => go({ name: "preview", id })}>
           Preview
         </Button>
@@ -130,88 +154,71 @@ export default function Builder({ id }: { id: string }) {
           <PublishPanel id={id} />
 
           {tab === "questions" && (
-            <>
-              <div className="card" style={{ padding: "22px 24px" }}>
-                <input
-                  className="bare h1"
-                  value={form.title}
-                  placeholder="Form title"
-                  onChange={(e) => patch({ title: e.target.value })}
-                />
-                <textarea
-                  className="bare muted"
-                  value={form.description}
-                  placeholder="Form description — shown to whoever fills it in"
-                  onChange={(e) => patch({ description: e.target.value })}
-                  rows={form.description.split("\n").length + 1}
-                  style={{ marginTop: 8, resize: "none", overflow: "hidden" }}
-                />
-              </div>
-
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={onDragEnd}
-                modifiers={[restrictToVerticalAxis]}
-              >
-                <SortableContext
-                  items={form.questions.map((q) => q.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    {form.questions.map((q, i) => (
-                      <QuestionCard key={q.id} q={q} index={i} />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-
-              <div className="row" style={{ justifyContent: "center", gap: 10, paddingTop: 4 }}>
-                <Button
-                  variant="primary"
-                  icon="plus"
-                  onClick={() => addQuestion("short_text", selected ?? undefined)}
-                >
-                  Add question
-                </Button>
-                <Menu
-                  align="left"
-                  trigger={(open) => (
-                    <Button variant="outline" icon="list" onClick={open}>
-                      Add a specific type
-                    </Button>
-                  )}
-                >
-                  {(close) => (
-                    <div style={{ maxHeight: 420, overflowY: "auto", minWidth: 224 }}>
-                      {TYPE_GROUPS.map((g, gi) => (
-                        <div key={g}>
-                          {gi > 0 && <hr />}
-                          <div className="grouphead">{g}</div>
-                          {TYPES.filter((t) => t.group === g).map((t) => (
-                            <button
-                              key={t.type}
-                              onClick={() => {
-                                addQuestion(t.type as QuestionType, selected ?? undefined);
-                                close();
-                              }}
-                            >
-                              {t.icon}
-                              {t.label}
-                            </button>
-                          ))}
-                        </div>
-                      ))}
+            /* The add controls live in a rail beside the list, not under it —
+               on a long form the buttons were a scroll away from the question
+               you had just selected. */
+            <div className="editlayout">
+              <div className="editcol">
+                <div className="card" style={{ padding: "22px 24px" }}>
+                  {form.settings.banner && (
+                    <div className={`bannerprev ${form.settings.bannerHeight || "medium"}`}>
+                      <img src={form.settings.banner} alt="" />
                     </div>
                   )}
-                </Menu>
+                  <input
+                    className="bare h1"
+                    value={form.title}
+                    placeholder="Form title"
+                    style={styleToCss(form.settings.titleStyle)}
+                    onChange={(e) => patch({ title: e.target.value })}
+                  />
+                  <TextStyleBar
+                    value={form.settings.titleStyle}
+                    onChange={(t) => patchSettings({ titleStyle: t })}
+                    label="Title"
+                  />
+                  <textarea
+                    className="bare muted"
+                    value={form.description}
+                    placeholder="Form description — shown to whoever fills it in"
+                    style={{ marginTop: 8, resize: "none", overflow: "hidden", ...styleToCss(form.settings.descriptionStyle) }}
+                    onChange={(e) => patch({ description: e.target.value })}
+                    rows={form.description.split("\n").length + 1}
+                  />
+                  <TextStyleBar
+                    value={form.settings.descriptionStyle}
+                    onChange={(t) => patchSettings({ descriptionStyle: t })}
+                    label="Description"
+                  />
+                </div>
+
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={onDragEnd}
+                  modifiers={[restrictToVerticalAxis]}
+                >
+                  <SortableContext
+                    items={form.questions.map((q) => q.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {form.questions.map((q, i) => (
+                        <QuestionCard key={q.id} q={q} index={i} />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </div>
-            </>
+
+              <AddRail onShowKeys={() => setKeys(true)} />
+            </div>
           )}
 
           {tab === "design" && (
             <>
               <InstitutionPanel />
+              <BannerPanel />
               <StylePicker />
               <ColorwayPanel />
             </>
@@ -223,12 +230,31 @@ export default function Builder({ id }: { id: string }) {
               <QuizPanel />
               <ReceiptPanel />
               <DataFolderPanel />
+              <PrintPanel id={id} />
               <WebhookPanel />
               <ColumnsPanel columns={allHeaders(form)} />
             </>
           )}
         </div>
       </div>
+
+      {keys && (
+        <Modal title="Keyboard shortcuts" onClose={() => setKeys(false)}>
+          <p style={{ marginBottom: 18 }}>
+            These work anywhere in the editor. Anything without <kbd>Ctrl</kbd> or{" "}
+            <kbd>Alt</kbd> is ignored while you are typing, so a shortcut can never
+            eat a letter you meant to write.
+          </p>
+          <div className="keysheet">
+            {SHORTCUTS.map((k) => (
+              <div className="keyrow" key={k.keys}>
+                <span>{k.what}</span>
+                <kbd>{k.keys}</kbd>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
     </>
   );
 }
@@ -1007,6 +1033,348 @@ function QuizPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ==========================================================================
+   THE ADD RAIL
+   ========================================================================== */
+
+/**
+ * The vertical action rail beside the question list.
+ *
+ * It sticks to the top of the viewport, so on a form with forty questions the
+ * controls are always next to whatever you just clicked rather than a scroll
+ * away at the bottom.
+ */
+function AddRail({ onShowKeys }: { onShowKeys: () => void }) {
+  const { addQuestion, selected, form, undo, redo, canUndo, canRedo } = useApp();
+  if (!form) return null;
+  const after = selected ?? undefined;
+
+  const quick: { type: QuestionType; label: string; icon: string }[] = [
+    { type: "short_text", label: "Question", icon: "plus" },
+    { type: "section", label: "Section", icon: "section" },
+    { type: "image", label: "Picture", icon: "image" },
+    { type: "file", label: "File upload", icon: "upload" },
+  ];
+
+  return (
+    <aside className="addrail" aria-label="Add to this form">
+      <div className="railcard">
+        <div className="railhead">Add</div>
+        {quick.map((it) => (
+          <button
+            key={it.type}
+            className="railbtn"
+            onClick={() => addQuestion(it.type, after)}
+            title={`Add a ${it.label.toLowerCase()}`}
+          >
+            <Icon name={it.icon as never} size={17} />
+            <span>{it.label}</span>
+          </button>
+        ))}
+
+        <Menu
+          align="left"
+          trigger={(open) => (
+            <button className="railbtn" onClick={open}>
+              <Icon name="list" size={17} />
+              <span>Any type…</span>
+            </button>
+          )}
+        >
+          {(close) => (
+            <div style={{ maxHeight: 440, overflowY: "auto", minWidth: 224 }}>
+              {TYPE_GROUPS.map((g, gi) => (
+                <div key={g}>
+                  {gi > 0 && <hr />}
+                  <div className="grouphead">{g}</div>
+                  {TYPES.filter((t) => t.group === g).map((t) => (
+                    <button
+                      key={t.type}
+                      onClick={() => {
+                        addQuestion(t.type as QuestionType, after);
+                        close();
+                      }}
+                    >
+                      {t.icon}
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </Menu>
+      </div>
+
+      <div className="railcard">
+        <div className="railhead">History</div>
+        <button className="railbtn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
+          <Icon name="back" size={17} />
+          <span>Undo</span>
+        </button>
+        <button className="railbtn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)">
+          <Icon name="forward" size={17} />
+          <span>Redo</span>
+        </button>
+      </div>
+
+      <button className="railbtn" onClick={onShowKeys} style={{ paddingLeft: 17 }}>
+        <Icon name="list" size={15} />
+        <span>Keyboard shortcuts</span>
+      </button>
+
+      <p className="railnote">
+        New blocks land just below the question you have selected.
+      </p>
+    </aside>
+  );
+}
+
+/* ==========================================================================
+   TEXT STYLING
+   ========================================================================== */
+
+/**
+ * The formatting strip under a title or description.
+ *
+ * A fixed set of switches rather than a rich-text box: a form definition is
+ * read by the app, by a page served to phones and by Excel, and pasted markup
+ * would have to be sanitised in all three. See `src/lib/richtext.tsx`.
+ */
+function TextStyleBar({
+  value,
+  onChange,
+  label,
+}: {
+  value: TextStyle | undefined;
+  onChange: (t: TextStyle) => void;
+  label: string;
+}) {
+  const t = value ?? {};
+  const set = (p: Partial<TextStyle>) => onChange({ ...t, ...p });
+  const [open, setOpen] = useState(isStyled(value));
+
+  if (!open) {
+    return (
+      <button className="stylebar-open" onClick={() => setOpen(true)}>
+        <Icon name="palette" size={13} /> Format {label.toLowerCase()}
+      </button>
+    );
+  }
+
+  return (
+    <div className="stylebar">
+      <button className={t.bold ? "on" : ""} onClick={() => set({ bold: !t.bold })} title="Bold">
+        <b>B</b>
+      </button>
+      <button className={t.italic ? "on" : ""} onClick={() => set({ italic: !t.italic })} title="Italic">
+        <i>I</i>
+      </button>
+      <button
+        className={t.underline ? "on" : ""}
+        onClick={() => set({ underline: !t.underline })}
+        title="Underline"
+      >
+        <u>U</u>
+      </button>
+
+      <span className="sep" />
+
+      <select
+        value={t.size ?? 0}
+        onChange={(e) => set({ size: Number(e.target.value) as TextStyle["size"] })}
+        title="Size"
+      >
+        <option value={-1}>Small</option>
+        <option value={0}>Normal</option>
+        <option value={1}>Large</option>
+        <option value={2}>Largest</option>
+      </select>
+
+      <select value={t.font ?? ""} onChange={(e) => set({ font: e.target.value as TextStyle["font"] })} title="Typeface">
+        <option value="">Default face</option>
+        <option value="display">Headline</option>
+        <option value="body">Reading</option>
+        <option value="mono">Fixed width</option>
+      </select>
+
+      <select value={t.align ?? ""} onChange={(e) => set({ align: e.target.value as TextStyle["align"] })} title="Alignment">
+        <option value="">Default</option>
+        <option value="left">Left</option>
+        <option value="center">Centre</option>
+        <option value="right">Right</option>
+      </select>
+
+      <span className="sep" />
+
+      <div className="swatches">
+        {TEXT_COLORS.map((c) => (
+          <button
+            key={c.label}
+            className={`sw${(t.color ?? "") === c.value ? " on" : ""}`}
+            style={{ background: c.value || "transparent" }}
+            title={c.label}
+            onClick={() => set({ color: c.value })}
+          >
+            {!c.value && <Icon name="x" size={11} />}
+          </button>
+        ))}
+      </div>
+
+      <span className="grow" />
+      <button
+        className="clear"
+        onClick={() => {
+          onChange({});
+          setOpen(false);
+        }}
+        title="Clear formatting"
+      >
+        Reset
+      </button>
+    </div>
+  );
+}
+
+/* ==========================================================================
+   BANNER
+   ========================================================================== */
+
+function BannerPanel() {
+  const { form, patchSettings } = useApp();
+  const toast = useToast();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  if (!form) return null;
+  const b = form.settings.banner;
+
+  async function take(file: File | null) {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const pic = await readPicture(file);
+      patchSettings({ banner: pic.dataUrl });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "That picture could not be added.", "bad");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card pad">
+      <h3>Header banner</h3>
+      <p className="hint" style={{ marginTop: 3 }}>
+        A strip across the top of the form, above the letterhead. A campus photo,
+        an event poster, a sports day header.
+      </p>
+
+      {b ? (
+        <>
+          <div className={`bannerprev ${form.settings.bannerHeight || "medium"}`} style={{ marginTop: 16 }}>
+            <img src={b} alt="" />
+          </div>
+          <div className="wrap-row" style={{ marginTop: 12 }}>
+            <label className="label" style={{ margin: 0 }}>Height</label>
+            <div className="seg">
+              {(["short", "medium", "tall"] as const).map((h) => (
+                <button
+                  key={h}
+                  className={form.settings.bannerHeight === h ? "on" : ""}
+                  onClick={() => patchSettings({ bannerHeight: h })}
+                >
+                  {h === "short" ? "Short" : h === "medium" ? "Medium" : "Tall"}
+                </button>
+              ))}
+            </div>
+            <span className="grow" />
+            <Button size="sm" icon="upload" onClick={() => input.current?.click()}>
+              Replace
+            </Button>
+            <Button size="sm" variant="danger" icon="trash" onClick={() => patchSettings({ banner: "" })}>
+              Remove
+            </Button>
+          </div>
+          <p className="hint" style={{ marginTop: 10 }}>
+            The banner is cropped to fill, so keep anything important away from the
+            very edges. Wide pictures work best.
+          </p>
+        </>
+      ) : (
+        <div
+          className="picdrop"
+          role="button"
+          tabIndex={0}
+          style={{ marginTop: 16 }}
+          onClick={() => input.current?.click()}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && input.current?.click()}
+          onPaste={(e) => {
+            const f = pictureFromClipboard(e.nativeEvent as ClipboardEvent);
+            if (f) {
+              e.preventDefault();
+              void take(f);
+            }
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            void take(pictureFromDrop(e));
+          }}
+        >
+          <Icon name="image" size={28} />
+          <b>{busy ? "Adding…" : "Add a banner"}</b>
+          <s>Click to browse, drag one here, or press Ctrl+V to paste</s>
+        </div>
+      )}
+
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          void take(e.target.files?.[0] ?? null);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
+/* ==========================================================================
+   PRINT A BLANK COPY
+   ========================================================================== */
+
+/**
+ * A paper copy of the form.
+ *
+ * Schools still collect on paper — at a gate, in a hall with no Wi-Fi, from a
+ * parent who would rather write. This prints the same questions with ruled
+ * space to write in, so the paper and the screen ask exactly the same things.
+ */
+function PrintPanel({ id }: { id: string }) {
+  const { form, go } = useApp();
+  if (!form) return null;
+  return (
+    <div className="card pad">
+      <h3>Print a blank copy</h3>
+      <p className="hint" style={{ marginTop: 3 }}>
+        An A4 paper version with ruled space to write in — the same questions in
+        the same order, so what comes back on paper matches the Excel columns.
+      </p>
+      <div className="wrap-row" style={{ marginTop: 16 }}>
+        <Button variant="primary" icon="file" onClick={() => go({ name: "print", id })}>
+          Open the printable copy
+        </Button>
+      </div>
+      <p className="hint" style={{ marginTop: 12 }}>
+        You choose colour or black-and-white on the next screen, then use your
+        browser's own print dialog — which is also where “Save as PDF” lives.
+      </p>
     </div>
   );
 }

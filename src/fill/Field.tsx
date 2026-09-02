@@ -1,8 +1,18 @@
 import { useRef, useState } from "react";
 import { Icon } from "../components/Icons";
 import { shuffled } from "../lib/answers";
-import { humanSize, pictureFromClipboard, pictureFromDrop, readPicture } from "../lib/image";
+import { pictureFromClipboard, pictureFromDrop } from "../lib/image";
 import { applyMask, maskExample } from "../lib/mask";
+import {
+  KIND_LABEL,
+  acceptFor,
+  humanBytes,
+  kindsOf,
+  maxMb,
+  packAttachment,
+  readAttachment,
+  unpackAttachment,
+} from "../lib/upload";
 import type { AnswerValue, FormStyle, Question } from "../types";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -62,6 +72,8 @@ export function Field({
       return (
         <input
           className={`fs-input${narrow ? " fs-narrow" : ""}`}
+          min={q.type === "date" ? q.minDate || undefined : undefined}
+          max={q.type === "date" ? q.maxDate || undefined : undefined}
           type={masked ? "text" : type}
           inputMode={masked && /^[9\- ]+$/.test(q.mask) ? "numeric" : undefined}
           value={str}
@@ -145,7 +157,8 @@ export function Field({
       return <Grid q={q} value={value} onChange={onChange} />;
 
     case "photo":
-      return <PhotoField value={str} onChange={onChange} />;
+    case "file":
+      return <UploadField q={q} value={str} onChange={onChange} />;
 
     default:
       return null;
@@ -339,20 +352,22 @@ function Grid({
 }
 
 
-/* --------------------------------------------------------------- photo */
+/* -------------------------------------------------------------- uploads */
 
 /**
- * A respondent's photo upload.
+ * An attachment from the respondent.
  *
- * On a phone this opens the camera directly, which is the whole point for
- * admission forms — a parent photographs the birth certificate on the spot.
- * The picture is held as a data URL while the form is being filled; the Rust
- * side writes it out as a real file beside the workbook on submit.
+ * On a phone an image-only question opens the camera directly, which is the
+ * whole point for admission forms. Anything else opens the file picker. Type
+ * and size are both checked before the file is held, so a 400 MB video is
+ * refused at the counter rather than half-way through a submission.
  */
-function PhotoField({
+function UploadField({
+  q,
   value,
   onChange,
 }: {
+  q: Question;
   value: string;
   onChange: (v: AnswerValue) => void;
 }) {
@@ -361,26 +376,38 @@ function PhotoField({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  const kinds = kindsOf(q);
+  const imageOnly = kinds.length === 1 && kinds[0] === "image";
+
   async function take(file: File | null) {
     if (!file) return;
     setBusy(true);
     setErr("");
     try {
-      const pic = await readPicture(file);
-      onChange(pic.dataUrl);
+      const a = await readAttachment(q, file);
+      onChange(packAttachment(a));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "That picture could not be added.");
+      setErr(e instanceof Error ? e.message : "That file could not be added.");
     } finally {
       setBusy(false);
     }
   }
 
   if (value) {
+    const { name, dataUrl } = unpackAttachment(value);
+    const isImage = dataUrl.startsWith("data:image/");
     return (
       <div className="fs-shot">
-        <img src={value} alt="The photo you attached" />
+        {isImage ? (
+          <img src={dataUrl} alt={name || "The file you attached"} />
+        ) : (
+          <span className="fs-filemark" aria-hidden="true">
+            <Icon name="file" size={26} />
+          </span>
+        )}
         <div className="meta">
-          Attached · about {humanSize(value.length)}
+          {name && <b className="fs-filename">{name}</b>}
+          Attached · about {humanBytes(Math.round((dataUrl.length * 3) / 4))}
           <br />
           <button type="button" onClick={() => onChange("")}>
             Remove and choose another
@@ -413,19 +440,27 @@ function PhotoField({
         onDrop={(e) => {
           e.preventDefault();
           setOver(false);
-          void take(pictureFromDrop(e));
+          void take(pictureFromDrop(e) ?? e.dataTransfer?.files?.[0] ?? null);
         }}
       >
-        <Icon name="camera" size={26} />
-        <b>{busy ? "Adding…" : "Take a photo or choose a file"}</b>
-        <s>Tap to open the camera, or drag a picture here</s>
+        <Icon name={imageOnly ? "camera" : "upload"} size={26} />
+        <b>
+          {busy
+            ? "Adding…"
+            : imageOnly
+            ? "Take a photo or choose a file"
+            : "Choose a file"}
+        </b>
+        <s>
+          {kinds.map((k) => KIND_LABEL[k]).join(" · ")} · up to {maxMb(q)} MB
+        </s>
       </div>
       {err && <p className="fs-err">{err}</p>}
       <input
         ref={input}
         type="file"
-        accept="image/*"
-        capture="environment"
+        accept={acceptFor(q) || undefined}
+        capture={imageOnly ? "environment" : undefined}
         hidden
         onChange={(e) => {
           void take(e.target.files?.[0] ?? null);

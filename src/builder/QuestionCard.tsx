@@ -13,18 +13,23 @@ import {
   laterSections,
 } from "../lib/logic";
 import { MARKABLE } from "../lib/quiz";
+import { TEXT_COLORS } from "../lib/richtext";
 import { MASK_PRESETS, maskExample, presetFor } from "../lib/mask";
+import { styleToCss } from "../lib/richtext";
+import { KIND_LABEL, ABSOLUTE_MAX_MB, DEFAULT_MAX_MB, kindsOf } from "../lib/upload";
 import { useApp } from "../lib/store";
 import { OptionList } from "./OptionList";
 import { SUBMIT_SECTION } from "../types";
-import type { ConditionRule, Question, QuestionConditions, QuestionType } from "../types";
+import type { ConditionRule, Question, QuestionConditions, QuestionType, UploadKind } from "../types";
 
 export function QuestionCard({ q, index }: { q: Question; index: number }) {
   const { form, selected, select, patchQuestion, changeType, removeQuestion, duplicateQuestion } =
     useApp();
   const isSel = selected === q.id;
   const meta = TYPE_MAP[q.type];
-  const [panel, setPanel] = useState<"none" | "logic" | "checks" | "route" | "key">("none");
+  const [panel, setPanel] = useState<
+    "none" | "logic" | "checks" | "route" | "key" | "text" | "upload"
+  >("none");
   const isQuiz = !!form?.settings.quiz;
   const ruleCount = q.conditions?.rules.length ?? 0;
   const hasChecks = !!(q.mask || q.pattern);
@@ -85,6 +90,7 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
             <div className="grow">
               <input
                 className="bare h2"
+                style={styleToCss(q.titleStyle)}
                 value={q.title}
                 placeholder={
                   q.type === "image"
@@ -99,7 +105,7 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
                   value={q.description}
                   placeholder="Help text (optional)"
                   onChange={(e) => patch({ description: e.target.value })}
-                  style={{ marginTop: 4 }}
+                  style={{ marginTop: 4, ...styleToCss(q.helpStyle) }}
                 />
               )}
             </div>
@@ -139,6 +145,16 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
             </div>
           )}
           {isSel && panel === "route" && <OptionRouting q={q} />}
+          {isSel && panel === "text" && (
+            <div className="logicbox">
+              <QuestionTextStyles q={q} patch={patch} />
+            </div>
+          )}
+          {isSel && panel === "upload" && (
+            <div className="logicbox">
+              <UploadSettings q={q} patch={patch} />
+            </div>
+          )}
           {isSel && panel === "key" && <AnswerKeyPanel q={q} patch={patch} />}
         </>
       )}
@@ -180,6 +196,24 @@ export function QuestionCard({ q, index }: { q: Question; index: number }) {
                   onClick={() => setPanel(panel === "checks" ? "none" : "checks")}
                 >
                   Format{hasChecks ? " ·" : ""}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                icon="palette"
+                variant={panel === "text" ? "primary" : undefined}
+                onClick={() => setPanel(panel === "text" ? "none" : "text")}
+              >
+                Text
+              </Button>
+              {(q.type === "photo" || q.type === "file") && (
+                <Button
+                  size="sm"
+                  icon="upload"
+                  variant={panel === "upload" ? "primary" : undefined}
+                  onClick={() => setPanel(panel === "upload" ? "none" : "upload")}
+                >
+                  File rules
                 </Button>
               )}
               {q.type === "multiple_choice" && (
@@ -1344,6 +1378,170 @@ export function AnswerKeyPanel({
           wrong rather than given half marks.
         </p>
       )}
+    </div>
+  );
+}
+
+
+/* ------------------------------------------------------------ text styles */
+
+/** Formatting for one question's own title and help text. */
+function QuestionTextStyles({
+  q,
+  patch,
+}: {
+  q: Question;
+  patch: (p: Partial<Question>) => void;
+}) {
+  return (
+    <div className="stack" style={{ gap: 16 }}>
+      <div>
+        <label className="label">Question text</label>
+        <MiniStyleBar value={q.titleStyle} onChange={(t) => patch({ titleStyle: t })} />
+      </div>
+      <div>
+        <label className="label">Help text</label>
+        <MiniStyleBar value={q.helpStyle} onChange={(t) => patch({ helpStyle: t })} />
+      </div>
+      <p className="hint" style={{ margin: 0 }}>
+        The same formatting appears on the phone and public versions, and on the
+        printable paper copy.
+      </p>
+    </div>
+  );
+}
+
+function MiniStyleBar({
+  value,
+  onChange,
+}: {
+  value: Question["titleStyle"];
+  onChange: (t: NonNullable<Question["titleStyle"]>) => void;
+}) {
+  const t = value ?? {};
+  const set = (p: Partial<typeof t>) => onChange({ ...t, ...p });
+  return (
+    <div className="stylebar">
+      <button className={t.bold ? "on" : ""} onClick={() => set({ bold: !t.bold })} title="Bold">
+        <b>B</b>
+      </button>
+      <button className={t.italic ? "on" : ""} onClick={() => set({ italic: !t.italic })} title="Italic">
+        <i>I</i>
+      </button>
+      <button
+        className={t.underline ? "on" : ""}
+        onClick={() => set({ underline: !t.underline })}
+        title="Underline"
+      >
+        <u>U</u>
+      </button>
+      <span className="sep" />
+      <select
+        value={t.size ?? 0}
+        onChange={(e) => set({ size: Number(e.target.value) as typeof t.size })}
+        title="Size"
+      >
+        <option value={-1}>Small</option>
+        <option value={0}>Normal</option>
+        <option value={1}>Large</option>
+        <option value={2}>Largest</option>
+      </select>
+      <select
+        value={t.font ?? ""}
+        onChange={(e) => set({ font: e.target.value as typeof t.font })}
+        title="Typeface"
+      >
+        <option value="">Default face</option>
+        <option value="display">Headline</option>
+        <option value="body">Reading</option>
+        <option value="mono">Fixed width</option>
+      </select>
+      <span className="sep" />
+      <div className="swatches">
+        {TEXT_COLORS.map((c) => (
+          <button
+            key={c.label}
+            className={`sw${(t.color ?? "") === c.value ? " on" : ""}`}
+            style={{ background: c.value || "transparent" }}
+            title={c.label}
+            onClick={() => set({ color: c.value })}
+          >
+            {!c.value && <Icon name="x" size={11} />}
+          </button>
+        ))}
+      </div>
+      <span className="grow" />
+      <button className="clear" onClick={() => onChange({})} title="Clear formatting">
+        Reset
+      </button>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------- upload settings */
+
+const ALL_KINDS: UploadKind[] = ["image", "document", "video", "audio", "any"];
+
+function UploadSettings({
+  q,
+  patch,
+}: {
+  q: Question;
+  patch: (p: Partial<Question>) => void;
+}) {
+  const kinds = kindsOf(q);
+
+  function toggle(k: UploadKind) {
+    // "Any file" is a whole state, not one more tick box — mixing it with the
+    // others would leave a filter that filters nothing.
+    if (k === "any") {
+      patch({ uploadKinds: ["any"] });
+      return;
+    }
+    const without = kinds.filter((x) => x !== "any");
+    const next = without.includes(k) ? without.filter((x) => x !== k) : [...without, k];
+    patch({ uploadKinds: next.length ? next : ["any"] });
+  }
+
+  return (
+    <div className="stack" style={{ gap: 16 }}>
+      <div>
+        <label className="label">What may be attached</label>
+        <div className="slipfields">
+          {ALL_KINDS.map((k) => (
+            <label key={k} className={`slipfield${kinds.includes(k) ? " on" : ""}`}>
+              <input type="checkbox" checked={kinds.includes(k)} onChange={() => toggle(k)} />
+              <span className="truncate">{KIND_LABEL[k]}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="label">Largest single file</label>
+        <div className="wrap-row">
+          <input
+            className="input"
+            style={{ width: 110 }}
+            type="number"
+            min={1}
+            max={ABSOLUTE_MAX_MB}
+            placeholder={String(DEFAULT_MAX_MB)}
+            value={q.maxFileMb}
+            onChange={(e) => patch({ maxFileMb: e.target.value })}
+          />
+          <span style={{ color: "var(--ink-3)", fontSize: 13.5 }}>
+            MB · blank uses {DEFAULT_MAX_MB} MB · {ABSOLUTE_MAX_MB} MB is the ceiling
+          </span>
+        </div>
+      </div>
+
+      <p className="hint" style={{ margin: 0 }}>
+        Pictures are shrunk automatically before they are kept. Videos, recordings
+        and documents are stored as they arrive, so the limit above is what stops a
+        term's responses filling the disk. Every attachment is saved as a real file
+        beside the Excel workbook, under the name the person gave it.
+      </p>
     </div>
   );
 }

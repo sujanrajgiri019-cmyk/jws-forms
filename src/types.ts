@@ -1,3 +1,20 @@
+/** How a question's title and help text are styled. */
+export interface TextStyle {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  /** Relative size: -1 smaller, 0 normal, 1 larger, 2 largest. */
+  size?: -1 | 0 | 1 | 2;
+  /** A hex colour, or empty for the style's own ink. */
+  color?: string;
+  /** "display" uses the heading face, "body" the reading face, "mono" fixed. */
+  font?: "" | "display" | "body" | "mono";
+  align?: "" | "left" | "center" | "right";
+}
+
+/** What a file-upload question will take. */
+export type UploadKind = "image" | "document" | "video" | "audio" | "any";
+
 export type QuestionType =
   | "short_text"
   | "paragraph"
@@ -15,7 +32,8 @@ export type QuestionType =
   | "time"
   | "section"
   | "image"
-  | "photo";
+  | "photo"
+  | "file";
 
 export type { Institution } from "./lib/brand";
 
@@ -134,6 +152,19 @@ export interface Question {
   /** What to say when `pattern` fails. */
   patternMessage: string;
 
+  /** Earliest / latest acceptable date, as yyyy-mm-dd. Empty = no limit. */
+  minDate: string;
+  maxDate: string;
+
+  /** Styling for the question's own title and help text. */
+  titleStyle?: TextStyle;
+  helpStyle?: TextStyle;
+
+  /** For a "photo"/"file" question: what may be attached, and how large. */
+  uploadKinds: UploadKind[];
+  /** Largest single file, in megabytes. Empty falls back to the app default. */
+  maxFileMb: string;
+
   /* Response validation, the way Google Forms shapes it. Empty string means
      "no limit" rather than 0, so a blank box is never read as a rule. */
   /** Smallest acceptable number. */
@@ -207,6 +238,13 @@ export interface FormSettings {
   shuffleQuestions: boolean;
   /** Marks answers against the key and writes a score column. */
   quiz: boolean;
+  /** A banner across the top of the form, as a data URL. */
+  banner: string;
+  /** How tall the banner is drawn. */
+  bannerHeight: "short" | "medium" | "tall";
+  /** Styling for the form's own title and description. */
+  titleStyle?: TextStyle;
+  descriptionStyle?: TextStyle;
   /** Show each respondent their score and feedback straight after submitting. */
   quizShowScore: boolean;
   /**

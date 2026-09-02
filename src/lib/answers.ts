@@ -15,6 +15,11 @@ export function isDisplayBlock(t: Question["type"]): boolean {
   return t === "section" || t === "image";
 }
 
+/** Question types that carry a file rather than typed text. */
+export function isUpload(t: Question["type"]): boolean {
+  return t === "photo" || t === "file";
+}
+
 export function headersFor(q: Question): string[] {
   const t = (q.title || "Untitled question").trim();
   if (q.type === "grid_choice" || q.type === "grid_checkbox") {
@@ -148,6 +153,11 @@ export function validate(q: Question, v: AnswerValue): string {
     const hi = q.maxNumber === "" ? null : Number(q.maxNumber);
     if (lo !== null && Number.isFinite(lo) && n < lo) return `Enter ${lo} or more.`;
     if (hi !== null && Number.isFinite(hi) && n > hi) return `Enter ${hi} or less.`;
+  }
+
+  if (q.type === "date") {
+    if (q.minDate && s < q.minDate) return `Choose a date on or after ${q.minDate}.`;
+    if (q.maxDate && s > q.maxDate) return `Choose a date on or before ${q.maxDate}.`;
   }
 
   if (q.type === "short_text" || q.type === "paragraph") {

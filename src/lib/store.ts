@@ -10,6 +10,7 @@ export type View =
   | { name: "preview"; id: string }
   | { name: "responses"; id: string }
   | { name: "share"; id: string }
+  | { name: "print"; id: string }
   | { name: "settings" };
 
 interface State {
@@ -41,9 +42,28 @@ interface State {
   reorder: (from: number, to: number) => void;
 
   save: () => Promise<void>;
+
+  /* Undo history. Snapshots of the whole form, which is small enough that
+     nothing cleverer is worth the bugs. */
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
 }
 
+/** How many steps back you can go. Twenty is more than anyone reaches for. */
+const HISTORY_LIMIT = 20;
+/**
+ * Typing produces an edit per keystroke. Anything landing within this many
+ * milliseconds of the last one joins it rather than becoming its own step, so
+ * one Ctrl+Z undoes a word, not a letter.
+ */
+const COALESCE_MS = 600;
+
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let past: FormDef[] = [];
+let future: FormDef[] = [];
+let lastPush = 0;
 
 export const useApp = create<State>((set, get) => {
   /** Mark dirty and schedule an autosave a beat after typing stops. */
@@ -53,15 +73,29 @@ export const useApp = create<State>((set, get) => {
     saveTimer = setTimeout(() => void get().save(), 700);
   };
 
-  const editForm = (fn: (f: FormDef) => FormDef) => {
+  /**
+   * Apply an edit, remembering the state before it.
+   *
+   * `structural` forces its own history entry — adding, deleting, reordering or
+   * changing a question's type is a discrete act, and folding it into the
+   * keystroke before it would make undo unpredictable.
+   */
+  const editForm = (fn: (f: FormDef) => FormDef, structural = false) => {
     const f = get().form;
     if (!f) return;
-    set({ form: fn(f) });
+    const now = Date.now();
+    if (structural || now - lastPush > COALESCE_MS) {
+      past.push(f);
+      if (past.length > HISTORY_LIMIT) past.shift();
+      future = [];
+    }
+    lastPush = now;
+    set({ form: fn(f), canUndo: past.length > 0, canRedo: false });
     touch();
   };
 
-  const editQuestions = (fn: (q: Question[]) => Question[]) =>
-    editForm((f) => ({ ...f, questions: fn(f.questions) }));
+  const editQuestions = (fn: (q: Question[]) => Question[], structural = false) =>
+    editForm((f) => ({ ...f, questions: fn(f.questions) }), structural);
 
   return {
     view: { name: "home" },
@@ -73,8 +107,32 @@ export const useApp = create<State>((set, get) => {
     saving: false,
     lastSaved: null,
     error: null,
+    canUndo: false,
+    canRedo: false,
 
     go: (v) => set({ view: v }),
+
+    undo() {
+      const f = get().form;
+      if (!f || !past.length) return;
+      const prev = past.pop()!;
+      future.push(f);
+      lastPush = 0; // the next edit starts a fresh step
+      set({ form: prev, canUndo: past.length > 0, canRedo: true, dirty: true });
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => void get().save(), 700);
+    },
+
+    redo() {
+      const f = get().form;
+      if (!f || !future.length) return;
+      const next = future.pop()!;
+      past.push(f);
+      lastPush = 0;
+      set({ form: next, canUndo: true, canRedo: future.length > 0, dirty: true });
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => void get().save(), 700);
+    },
 
     async refreshForms() {
       set({ loadingForms: true });
@@ -92,7 +150,14 @@ export const useApp = create<State>((set, get) => {
       if (get().dirty) await get().save();
       if (get().form?.id === id) return;
       const form = normalizeForm(await api.getForm(id));
+      // History belongs to one form; carrying it across would let Ctrl+Z paste
+      // one form's questions into another.
+      past = [];
+      future = [];
+      lastPush = 0;
       set({
+        canUndo: false,
+        canRedo: false,
         form,
         selected: form.questions[0]?.id ?? null,
         dirty: false,
@@ -112,7 +177,7 @@ export const useApp = create<State>((set, get) => {
         const i = afterId ? qs.findIndex((x) => x.id === afterId) : qs.length - 1;
         const at = i < 0 ? qs.length : i + 1;
         return [...qs.slice(0, at), q, ...qs.slice(at)];
-      });
+      }, true);
       set({ selected: q.id });
     },
 
@@ -120,12 +185,12 @@ export const useApp = create<State>((set, get) => {
       editQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, ...p } : q))),
 
     changeType: (id, type) =>
-      editQuestions((qs) => qs.map((q) => (q.id === id ? morphQuestion(q, type) : q))),
+      editQuestions((qs) => qs.map((q) => (q.id === id ? morphQuestion(q, type) : q)), true),
 
     removeQuestion(id) {
       const qs = get().form?.questions ?? [];
       const i = qs.findIndex((q) => q.id === id);
-      editQuestions((list) => list.filter((q) => q.id !== id));
+      editQuestions((list) => list.filter((q) => q.id !== id), true);
       const next = qs[i + 1]?.id ?? qs[i - 1]?.id ?? null;
       set({ selected: next });
     },
@@ -143,7 +208,7 @@ export const useApp = create<State>((set, get) => {
       editQuestions((qs) => {
         const i = qs.findIndex((q) => q.id === id);
         return [...qs.slice(0, i + 1), copy, ...qs.slice(i + 1)];
-      });
+      }, true);
       set({ selected: copy.id });
     },
 
@@ -153,7 +218,7 @@ export const useApp = create<State>((set, get) => {
         const [moved] = next.splice(from, 1);
         next.splice(to, 0, moved);
         return next;
-      });
+      }, true);
     },
 
     async save() {

@@ -36,6 +36,7 @@ export const TYPES: TypeMeta[] = [
   { type: "time", label: "Time", group: "Date & time", icon: <Icon name="clock" /> },
 
   { type: "photo", label: "Photo upload", group: "Files", icon: <Icon name="camera" /> },
+  { type: "file", label: "File upload", group: "Files", icon: <Icon name="upload" /> },
 
   { type: "section", label: "Section heading", group: "Layout", icon: <Icon name="section" /> },
   { type: "image", label: "Picture", group: "Layout", icon: <Icon name="image" /> },
@@ -85,6 +86,10 @@ export function newQuestion(type: QuestionType = "short_text"): Question {
     answerKey: [],
     feedbackCorrect: "",
     feedbackWrong: "",
+    minDate: "",
+    maxDate: "",
+    uploadKinds: type === "photo" ? ["image"] : ["image", "document"],
+    maxFileMb: "",
   };
 }
 
@@ -130,6 +135,8 @@ export function newForm(
       kiosk: false,
       shuffleQuestions: false,
       quiz: false,
+      banner: "",
+      bannerHeight: "medium",
       quizShowScore: true,
       receipt: {
         enabled: false,
@@ -180,6 +187,8 @@ export function normalizeForm(raw: import("../types").FormDef): import("../types
       ...s,
       shuffleQuestions: false,
       quiz: false,
+      banner: "",
+      bannerHeight: "medium",
       quizShowScore: true,
       receipt: { ...base.settings.receipt, ...(s.receipt ?? {}) },
     },
